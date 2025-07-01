@@ -1,0 +1,42 @@
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+
+public class LoginPage {
+    WebDriver driver;
+
+    public LoginPage(WebDriver driver) {
+        this.driver = driver;
+        PageFactory.initElements(driver, this);
+    }
+
+    {% for el in elements %}
+    @FindBy(xpath = "{{ el.xpath }}")
+    WebElement {{ el.name }};
+
+    public void {{ el.action }}() {
+        {% if el.action == 'click' %}
+        {{ el.name }}.click();
+        {% elif el.action == 'enterText' %}
+        {{ el.name }}.sendKeys("{{ el.sampleText or 'sampleText' }}");
+        {% endif %}
+    }
+    {% endfor %}
+}
+// This code defines a Page Object Model (POM) class for a login page in a web application using Selenium WebDriver.
+// It uses the PageFactory class to initialize web elements defined by their XPath.
+// The class includes methods to interact with these elements, such as clicking buttons or entering text into input fields.
+// Each web element is annotated with @FindBy to locate it on the page, and the methods are designed to perform specific actions based on the element's purpose.
+// The template allows for dynamic generation of web element definitions and actions based on the provided parameters.
+// The generated code can be used in a Selenium test to automate interactions with the login page.
+// The elements are defined in a loop, allowing for multiple elements to be included in the page object.
+// The actions for each element are determined by the `action` field, which can be either 'click' or 'enterText'.
+// The `sampleText` field is used to provide a default text for input fields when the action is 'enterText'.
+// The class can be extended or modified to include additional methods or elements as needed for the specific login page being tested.
+// The generated code is saved in a file named after the class name with a .java extension
+// in the 'generated_code' directory, making it easy to integrate into a larger test suite.
+// The use of the Page Object Model pattern promotes better organization and maintainability of
+// the test code by separating the page structure and interactions from the test logic.
+// The class can be instantiated in a test class, allowing for easy interaction with the login page
+// during automated testing.

@@ -1,0 +1,50 @@
+import org.openqa.selenium.WebDriver;
+{% if browser == 'chrome' %}
+import org.openqa.selenium.chrome.ChromeDriver;
+import io.github.bonigarcia.wdm.WebDriverManager;
+{% elif browser == 'firefox' %}
+import org.openqa.selenium.firefox.FirefoxDriver;
+import io.github.bonigarcia.wdm.WebDriverManager;
+{% endif %}
+import org.testng.annotations.*;
+import org.testng.Assert;
+
+public class {{ class_name }} {
+    WebDriver driver;
+
+    @BeforeClass
+    public void setup() {
+        {% if browser == 'chrome' %}
+        WebDriverManager.chromedriver().setup();
+        driver = new ChromeDriver();
+        {% elif browser == 'firefox' %}
+        WebDriverManager.firefoxdriver().setup();
+        driver = new FirefoxDriver();
+        {% endif %}
+        driver.manage().window().maximize();
+        driver.get("{{ url }}");
+    }
+
+    @Test
+    public void test{{ class_name }}() {
+        {{ page_class }} page = new {{ page_class }}(driver);
+        Assert.assertTrue(driver.getPageSource().contains("{{ validation_string }}"));
+    }
+
+    @AfterClass
+    public void teardown() {
+        if (driver != null) {
+            driver.quit();
+        }
+    }
+}
+// This code is a template for a TestNG test class that initializes a WebDriver instance,
+// navigates to a specified URL, and performs a simple validation check on the page source.
+// It uses the WebDriverManager library to manage browser drivers automatically.
+// The class name, page class, URL, and validation string are dynamically inserted into the template
+// based on the provided parameters. The setup method initializes the WebDriver,
+// the test method performs the validation, and the teardown method ensures the WebDriver is closed after the test is complete.
+// The browser type can be specified as either 'chrome' or 'firefox', and the appropriate WebDriver setup is performed accordingly.
+// The generated code is saved in a file named after the class name with a .java extension
+// in the 'generated_code' directory.
+          

@@ -1,0 +1,9 @@
+streamlit
+tinydb
+transformers
+jinja2
+selenium
+openai
+torch
+requests
+accelerate

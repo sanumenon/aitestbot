@@ -1,4 +1,5 @@
 package com.charitableimpact;
+
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.Select;
 
@@ -13,20 +14,27 @@ public class {{ class_name }}Page {
     By {{ element.name }}Locator = By.xpath("{{ element.xpath }}");
 
     public void interactWith{{ element.name|capitalize }}() {
-        {% if element.type == "dropdown" %}
-        Select dropdown = new Select(driver.findElement({{ element.name }}Locator));
-        dropdown.selectByIndex(1); // Change as needed
-        {% elif element.type in ["textarea", "textbox", "commentbox"] %}
-        WebElement el = driver.findElement({{ element.name }}Locator);
-        el.clear();
-        el.sendKeys("Test input");
-        {% elif element.type == "button" %}
-        driver.findElement({{ element.name }}Locator).click();
+        WebElement element = driver.findElement({{ element.name }}Locator);
+        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", element);
+
+        {% if element.is_dropdown %}
+        Select dropdown = new Select(element);
+        dropdown.selectByIndex(1);
+        {% elif element.is_textarea %}
+        element.clear();
+        element.sendKeys("Sample multiline input");
+        {% elif element.is_button %}
+        element.click();
+        {% elif element.is_checkbox %}
+        if (!element.isSelected()) {
+            element.click();
+        }
+        {% elif element.is_radiobutton %}
+        element.click();
         {% else %}
-        WebElement el = driver.findElement({{ element.name }}Locator);
-        el.sendKeys("Some value");
+        element.clear();
+        element.sendKeys("Test input");
         {% endif %}
-        ((JavascriptExecutor)driver).executeScript("arguments[0].scrollIntoView(true);", driver.findElement({{ element.name }}Locator));
     }
 
     public By get{{ element.name|capitalize }}Locator() {

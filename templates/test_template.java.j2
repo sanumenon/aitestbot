@@ -1,5 +1,14 @@
 package com.charitableimpact;
+
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.By;
+import org.testng.annotations.*;
+import org.testng.asserts.SoftAssert;
+import com.aventstack.extentreports.*;
+import com.charitableimpact.config.ExtentReportManager;
+import com.charitableimpact.{{ page_class }};
+
 {% if browser == 'chrome' %}
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -9,21 +18,21 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import io.github.bonigarcia.wdm.WebDriverManager;
 {% endif %}
-import org.testng.annotations.*;
-import org.testng.Assert;
-import com.charitableimpact.{{ page_class }};
 
 public class {{ class_name }}Test {
     WebDriver driver;
+    ExtentReports extent;
+    ExtentTest test;
 
     @BeforeClass
     public void setup() {
+        extent = ExtentReportManager.getInstance();
+        test = extent.createTest("{{ class_name }} Test");
+
         {% if browser == 'chrome' %}
         WebDriverManager.chromedriver().setup();
         ChromeOptions options = new ChromeOptions();
-        options.addArguments("--headless");
-        options.addArguments("--no-sandbox");
-        options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--headless", "--no-sandbox", "--disable-dev-shm-usage");
         driver = new ChromeDriver(options);
         {% elif browser == 'firefox' %}
         WebDriverManager.firefoxdriver().setup();
@@ -31,30 +40,36 @@ public class {{ class_name }}Test {
         options.addArguments("-headless");
         driver = new FirefoxDriver(options);
         {% endif %}
+
         driver.manage().window().maximize();
         driver.get("{{ url }}");
     }
 
     @Test
     public void test{{ class_name }}() {
+        SoftAssert softAssert = new SoftAssert();
         {{ page_class }} page = new {{ page_class }}(driver);
+
         {% for element in validations %}
         try {
             page.interactWith{{ element.name|capitalize }}();
+            test.pass("✅ Interacted with: {{ element.name }}");
         } catch (Exception e) {
-            System.out.println("❌ Failed to interact with: {{ element.name }} - " + e.getMessage());
+            test.fail("❌ Failed to interact with: {{ element.name }} - " + e.getMessage());
+            softAssert.fail("Interaction failed: {{ element.name }}");
         }
         {% endfor %}
 
-        // Robust validation: check if a key element is actually visible
-        try {
-            Assert.assertTrue(
-                driver.findElement(page.get{{ validations[0].name|capitalize }}Locator()).isDisplayed(),
-                "Validation failed: {{ validations[0].name }} is not displayed."
-            );
-        } catch (Exception e) {
-            Assert.fail("Validation element '{{ validations[0].name }}' not found: " + e.getMessage());
+        test.info("🔎 Verifying page contains text: {{ validation_string }}");
+        boolean containsText = driver.getPageSource().contains("{{ validation_string }}");
+        if (containsText) {
+            test.pass("✅ Found: {{ validation_string }}");
+        } else {
+            test.fail("❌ Missing: {{ validation_string }}");
+            softAssert.fail("Validation string not found.");
         }
+
+        softAssert.assertAll();
     }
 
     @AfterClass
@@ -62,5 +77,6 @@ public class {{ class_name }}Test {
         if (driver != null) {
             driver.quit();
         }
+        extent.flush();
     }
 }

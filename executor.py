@@ -8,7 +8,7 @@ def execute_tests_live(cwd="generated_code", browser="chrome", use_browserstack=
 
     try:
         process = subprocess.Popen(
-            ["mvn", "clean", "test"],
+           subprocess.run(["mvn", "clean", "test", "-U"]),
             cwd=cwd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

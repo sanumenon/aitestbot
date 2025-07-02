@@ -1,7 +1,17 @@
-# dom_scraper.py
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+import re
+
+def sanitize_name(name):
+    """
+    Converts raw attribute values into valid Java variable names.
+    Replaces non-alphanumeric characters with underscores and ensures it starts with a letter.
+    """
+    name = re.sub(r'\W+', '_', name)
+    if not name or not name[0].isalpha():
+        name = f"element_{name}"
+    return name
 
 def suggest_validations(url):
     options = Options()
@@ -22,12 +32,20 @@ def suggest_validations(url):
         elements = get_elements(fallback_xpath)
 
     validations = []
+    seen_names = set()
+
     for i, el in enumerate(elements[:10]):  # Limit max elements for speed
         try:
             tag = el.tag_name
-            name_attr = el.get_attribute("name") or f"element{i}"
+            raw_name = el.get_attribute("name") or f"element{i}"
+            safe_name = sanitize_name(raw_name)
+
+            # Ensure uniqueness of names
+            while safe_name in seen_names:
+                safe_name += f"_{i}"
+            seen_names.add(safe_name)
+
             id_attr = el.get_attribute("id")
-            type_attr = el.get_attribute("type")
 
             # Absolute XPath via JavaScript
             xpath = driver.execute_script("""
@@ -57,13 +75,13 @@ def suggest_validations(url):
                 sample_text = ""
 
             validations.append({
-                "name": name_attr.replace(" ", "_"),
+                "name": safe_name,
                 "xpath": f"//*[@id='{id_attr}']" if id_attr else xpath,
                 "action": action,
                 "sampleText": sample_text
             })
 
-        except Exception as e:
+        except Exception:
             continue
 
     driver.quit()

@@ -5,45 +5,67 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 import torch
 import warnings
 
-warnings.filterwarnings("ignore", message="You are using a model of type mistral.*", category=UserWarning)
-warnings.filterwarnings("ignore", message="The model 'MistralForCausalLM'.*", category=UserWarning)
+warnings.filterwarnings("ignore")
 
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_MODEL_NAME = "gpt-4"
+OPENAI_MODEL_NAME = "gpt-3.5-turbo"  # Default OpenAI model
 
+# Global variables
 local_tokenizer = None
 local_model = None
-use_openai = False
-
-try:
-    print("Loading local Mistral-7B-Instruct-v0.2...")
-    model_id = "mistralai/Mistral-7B-Instruct-v0.2"
-    local_tokenizer = AutoTokenizer.from_pretrained(model_id)
-    local_model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.float16, device_map="cpu")
-    local_chatbot_pipeline = pipeline("text-generation", model=local_model, tokenizer=local_tokenizer)#, device=-1) the model's device is already determined by device_map="cpu", so the pipeline doesn't need (and gets confused by) another device argument.
-    print("Local model loaded.")
-except Exception as e:
-    print(f"Failed to load local model: {e}")
-    use_openai = True
-
-if not local_model and OPENAI_API_KEY:
-    use_openai = True
-    print("Using OpenAI fallback...")
-elif not local_model and not OPENAI_API_KEY:
-    print("No LLM available.")
-
+local_chatbot_pipeline = None
 openai_client = None
-if use_openai:
+llm_mode = "local"  # Default mode
+
+def initialize_local_model():
+    global local_tokenizer, local_model, local_chatbot_pipeline
+    try:
+        model_id = "mistralai/Mistral-7B-Instruct-v0.2"
+        local_tokenizer = AutoTokenizer.from_pretrained(model_id)
+        local_model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.float16, device_map="cpu")
+        local_chatbot_pipeline = pipeline("text-generation", model=local_model, tokenizer=local_tokenizer)
+        print("✅ Local model loaded.")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to load local model: {e}")
+        return False
+
+def initialize_openai_client():
+    global openai_client
+    if not OPENAI_API_KEY:
+        print("❌ OPENAI_API_KEY is missing.")
+        return False
     try:
         openai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        print("✅ OpenAI client initialized.")
+        return True
     except Exception as e:
-        print(f"OpenAI init failed: {e}")
-        use_openai = False
-## Function to handle chat with LLM
+        print(f"❌ OpenAI client initialization failed: {e}")
+        return False
+
+# Call once at startup to attempt local load
+initialize_local_model()
+
+def set_llm_mode(mode: str):
+    global llm_mode
+    if mode == "openai":
+        if initialize_openai_client():
+            llm_mode = "openai"
+        else:
+            llm_mode = None
+    elif mode == "local":
+        if local_model:
+            llm_mode = "local"
+        else:
+            llm_mode = None
+    else:
+        llm_mode = None
+    print(f"🔁 LLM mode set to: {llm_mode}")
+
 def chat_with_llm(prompt_messages: list, temperature=0.7) -> str:
-    if local_model and not use_openai:
+    if llm_mode == "local" and local_model:
         try:
             formatted_input = local_tokenizer.apply_chat_template(prompt_messages, tokenize=False, add_generation_prompt=True)
             response = local_chatbot_pipeline(
@@ -55,30 +77,24 @@ def chat_with_llm(prompt_messages: list, temperature=0.7) -> str:
             )[0]["generated_text"]
             return response.replace(formatted_input, "").strip()
         except Exception as e:
-            print(f"Local inference failed: {e}")
-            if use_openai:
-                return _chat_with_openai(prompt_messages, temperature)
-            return f"Local model failed: {str(e)}"
-    elif use_openai:
-        return _chat_with_openai(prompt_messages, temperature)
+            return f"❌ Local model inference failed: {str(e)}"
+
+    elif llm_mode == "openai" and openai_client:
+        try:
+            response = openai_client.chat.completions.create(
+                model=OPENAI_MODEL_NAME,
+                messages=prompt_messages,
+                temperature=temperature,
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            return f"❌ OpenAI call failed: {str(e)}"
+    
     else:
-        return "No LLM available."
-## Function to handle OpenAI chat completions
-def _chat_with_openai(prompt_messages: list, temperature: float) -> str:
-    if not openai_client:
-        return "OpenAI client not ready."
-    try:
-        response = openai_client.chat.completions.create(
-            model=OPENAI_MODEL_NAME,
-            messages=prompt_messages,
-            temperature=temperature,
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        return f"OpenAI failed: {str(e)}"
+        return "❌ Selected LLM mode is not available or failed to initialize."
 
 def simple_chat_prompt(user_prompt: str) -> str:
     return chat_with_llm([
-        {"role": "system", "content": "You are a Java+Selenium version 4.2 or higher+TestNG expert assistant."},
+        {"role": "system", "content": "You are a senior QA automation engineer and expert assistant in Java (version 11+), Selenium 4.2 or higher, and TestNG. You help generate robust, reusable page object model test cases and validate UI behavior for web applications."},
         {"role": "user", "content": user_prompt}
     ])

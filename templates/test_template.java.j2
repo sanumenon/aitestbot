@@ -1,25 +1,35 @@
+package com.charitableimpact;
 import org.openqa.selenium.WebDriver;
 {% if browser == 'chrome' %}
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 import io.github.bonigarcia.wdm.WebDriverManager;
 {% elif browser == 'firefox' %}
 import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.firefox.FirefoxOptions;
 import io.github.bonigarcia.wdm.WebDriverManager;
 {% endif %}
 import org.testng.annotations.*;
 import org.testng.Assert;
+import com.charitableimpact.{{ page_class }};
 
-public class {{ class_name }} {
+public class {{ class_name }}Test {
     WebDriver driver;
 
     @BeforeClass
     public void setup() {
         {% if browser == 'chrome' %}
         WebDriverManager.chromedriver().setup();
-        driver = new ChromeDriver();
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("--headless");
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        driver = new ChromeDriver(options);
         {% elif browser == 'firefox' %}
         WebDriverManager.firefoxdriver().setup();
-        driver = new FirefoxDriver();
+        FirefoxOptions options = new FirefoxOptions();
+        options.addArguments("-headless");
+        driver = new FirefoxDriver(options);
         {% endif %}
         driver.manage().window().maximize();
         driver.get("{{ url }}");
@@ -28,7 +38,23 @@ public class {{ class_name }} {
     @Test
     public void test{{ class_name }}() {
         {{ page_class }} page = new {{ page_class }}(driver);
-        Assert.assertTrue(driver.getPageSource().contains("{{ validation_string }}"));
+        {% for element in validations %}
+        try {
+            page.interactWith{{ element.name|capitalize }}();
+        } catch (Exception e) {
+            System.out.println("❌ Failed to interact with: {{ element.name }} - " + e.getMessage());
+        }
+        {% endfor %}
+
+        // Robust validation: check if a key element is actually visible
+        try {
+            Assert.assertTrue(
+                driver.findElement(page.get{{ validations[0].name|capitalize }}Locator()).isDisplayed(),
+                "Validation failed: {{ validations[0].name }} is not displayed."
+            );
+        } catch (Exception e) {
+            Assert.fail("Validation element '{{ validations[0].name }}' not found: " + e.getMessage());
+        }
     }
 
     @AfterClass
@@ -38,13 +64,3 @@ public class {{ class_name }} {
         }
     }
 }
-// This code is a template for a TestNG test class that initializes a WebDriver instance,
-// navigates to a specified URL, and performs a simple validation check on the page source.
-// It uses the WebDriverManager library to manage browser drivers automatically.
-// The class name, page class, URL, and validation string are dynamically inserted into the template
-// based on the provided parameters. The setup method initializes the WebDriver,
-// the test method performs the validation, and the teardown method ensures the WebDriver is closed after the test is complete.
-// The browser type can be specified as either 'chrome' or 'firefox', and the appropriate WebDriver setup is performed accordingly.
-// The generated code is saved in a file named after the class name with a .java extension
-// in the 'generated_code' directory.
-          

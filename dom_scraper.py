@@ -3,51 +3,40 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 import re
 
+
 def sanitize_name(name):
-    """
-    Converts raw attribute values into valid Java variable names.
-    Replaces non-alphanumeric characters with underscores and ensures it starts with a letter.
-    """
     name = re.sub(r'\W+', '_', name)
     if not name or not name[0].isalpha():
         name = f"element_{name}"
-    return name
+    return name.lower()
+
 
 def suggest_validations(url):
     options = Options()
     options.add_argument("--headless=new")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
     driver = webdriver.Chrome(options=options)
     driver.get(url)
 
-    def get_elements(xpath):
-        return driver.find_elements(By.XPATH, xpath)
-
-    # Primary XPath: standard interactable elements
-    primary_xpath = "//input | //button | //textarea | //select"
-    elements = get_elements(primary_xpath)
-
-    # Fallback: if fewer than 3 elements, include links, roles, and all id-bearing elements
-    if len(elements) < 3:
-        fallback_xpath = f"{primary_xpath} | //a | //div[@role='button'] | //*[@id]"
-        elements = get_elements(fallback_xpath)
-
+    raw_elements = driver.find_elements(By.XPATH, "//input | //textarea | //select | //button")
     validations = []
     seen_names = set()
 
-    for i, el in enumerate(elements[:10]):  # Limit max elements for speed
+    for i, el in enumerate(raw_elements):
         try:
+            if not el.is_displayed() or not el.is_enabled():
+                continue
+
             tag = el.tag_name
-            raw_name = el.get_attribute("name") or f"element{i}"
+            raw_name = el.get_attribute("name") or el.get_attribute("id") or el.get_attribute("placeholder") or f"element{i}"
             safe_name = sanitize_name(raw_name)
 
-            # Ensure uniqueness of names
             while safe_name in seen_names:
                 safe_name += f"_{i}"
             seen_names.add(safe_name)
 
             id_attr = el.get_attribute("id")
-
-            # Absolute XPath via JavaScript
             xpath = driver.execute_script("""
                 function absoluteXPath(element) {
                     const idx = (sib, name) => sib
@@ -63,22 +52,30 @@ def suggest_validations(url):
                 return absoluteXPath(arguments[0]);
             """, el)
 
-            # Decide action type
             if tag in ["input", "textarea"]:
                 action = "enterText"
                 sample_text = "sample input"
-            elif tag in ["button", "select", "a", "div"]:
+                element_type = "textarea" if tag == "textarea" else "textbox"
+            elif tag in ["button"]:
                 action = "click"
                 sample_text = ""
+                element_type = "button"
+            elif tag in ["select"]:
+                action = "select"
+                sample_text = ""
+                element_type = "dropdown"
             else:
                 action = "click"
                 sample_text = ""
+                element_type = "button"
 
             validations.append({
                 "name": safe_name,
                 "xpath": f"//*[@id='{id_attr}']" if id_attr else xpath,
                 "action": action,
-                "sampleText": sample_text
+                "sampleText": sample_text,
+                "type": element_type,
+                "label": raw_name.strip()
             })
 
         except Exception:

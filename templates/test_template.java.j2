@@ -20,7 +20,7 @@ import io.github.bonigarcia.wdm.WebDriverManager;
 {% endif %}
 
 public class {{ class_name }}Test {
-    WebDriver driver;
+    public WebDriver driver;
     ExtentReports extent;
     ExtentTest test;
 
@@ -60,6 +60,7 @@ public class {{ class_name }}Test {
         }
         {% endfor %}
 
+        {% if include_text_validation %}
         test.info("🔎 Verifying page contains text: {{ validation_string }}");
         boolean containsText = driver.getPageSource().contains("{{ validation_string }}");
         if (containsText) {
@@ -68,6 +69,7 @@ public class {{ class_name }}Test {
             test.fail("❌ Missing: {{ validation_string }}");
             softAssert.fail("Validation string not found.");
         }
+        {% endif %}
 
         softAssert.assertAll();
     }

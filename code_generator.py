@@ -31,39 +31,26 @@ def generate_test_code(user_prompt, validations, url, browser="chrome", class_na
     test_template = load_template("test_template.java.j2")
     pom_template = load_template("pom.xml.j2")
 
-    # If no validation string provided, use the first element label
-    if validation_string is None:
-        validation_string = validations[0].get("label", "Welcome") if validations else "Welcome"
+    include_text_validation = bool(validation_string)
 
     # Normalize validations
     for v in validations:
         label = v.get("label", "element")
         v["name"] = v.get("name") or label.replace(" ", "_").lower()
-    
-        if v["name"] in {"class", "new", "default", "public", "private"}:
+
+        if v["name"] in JAVA_RESERVED_KEYWORDS:
             v["name"] += "_field"
-    
+
         element_type = v.get("type", "textbox").lower()
 
         # Normalize types
-        if element_type in {"textarea", "commentbox"}:
-            v["type"] = "textarea"
-            v["is_textarea"] = True
-        elif element_type in {"dropdown", "select"}:
-            v["type"] = "dropdown"
-            v["is_dropdown"] = True
-        elif element_type in {"checkbox"}:
-            v["type"] = "checkbox"
-            v["is_checkbox"] = True
-        elif element_type in {"radio", "radiobutton"}:
-            v["type"] = "radiobutton"
-            v["is_radiobutton"] = True
-        elif element_type in {"button", "submit"}:
-            v["type"] = "button"
-            v["is_button"] = True
-        else:
-            v["type"] = "textbox"
-            v["is_textbox"] = True
+        v["type"] = element_type
+        v["is_textarea"] = element_type in {"textarea", "commentbox"}
+        v["is_dropdown"] = element_type in {"dropdown", "select"}
+        v["is_checkbox"] = element_type == "checkbox"
+        v["is_radiobutton"] = element_type in {"radio", "radiobutton"}
+        v["is_button"] = element_type in {"button", "submit"}
+        v["is_textbox"] = not any([v["is_textarea"], v["is_dropdown"], v["is_checkbox"], v["is_radiobutton"], v["is_button"]])
 
     # Render Java Page Object
     page_code = page_template.render(
@@ -79,14 +66,15 @@ def generate_test_code(user_prompt, validations, url, browser="chrome", class_na
         url=url,
         browser=browser,
         validation_string=validation_string,
-        validations=validations
+        validations=validations,
+        include_text_validation=include_text_validation
     )
     files[f"{class_name}Test.java"] = test_code
 
     # Render POM
     files["pom.xml"] = pom_template.render()
 
-    # File structure
+    # Write files
     base_path = "generated_code/src/test/java/com/charitableimpact"
     os.makedirs(base_path, exist_ok=True)
 
@@ -97,3 +85,34 @@ def generate_test_code(user_prompt, validations, url, browser="chrome", class_na
             f.write(content)
 
     return files
+def generate_multiple_tests(test_specs):
+    """
+    Accepts a list of test module specs like:
+    [
+        {
+            "user_prompt": "Login form",
+            "validations": [...],
+            "url": "https://my.charitableimpact.com/login",
+            "class_name": "Login",
+            "validation_string": "Welcome"
+        },
+        {
+            "user_prompt": "Dashboard interactions",
+            "validations": [...],
+            "url": "https://my.chariabtleimpact.com/dashboard",
+            "class_name": "Dashboard",
+            "validation_string": "Dashboard loaded"
+        }
+    ]
+    """
+    for spec in test_specs:
+        print(f"🔧 Generating test class for: {spec['class_name']}")
+        generate_test_code(
+            user_prompt=spec.get("user_prompt", ""),
+            validations=spec["validations"],
+            url=spec["url"],
+            browser=spec.get("browser", "chrome"),
+            class_name=spec["class_name"],
+            validation_string=spec.get("validation_string")
+        )
+

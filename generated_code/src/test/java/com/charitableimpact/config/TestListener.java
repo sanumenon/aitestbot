@@ -80,7 +80,7 @@ public void onTestFailure(ITestResult result) {
     @Override public void onTestFailedWithTimeout(ITestResult result) {}
     public String takeScreenshot(WebDriver driver, String methodName) {
     String timestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
-    String screenshotDir = "screenshots";
+    String screenshotDir = "generated_code/screenshots";
     String screenshotPath = screenshotDir + "/" + methodName + "_" + timestamp + ".png";
 
     File src = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);

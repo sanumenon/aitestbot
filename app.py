@@ -3,7 +3,7 @@ import streamlit as st
 from config import get_target_url, DEFAULT_BROWSER
 from llm_engine import chat_with_llm, set_llm_mode
 from memory_manager import MemoryManager
-from code_generator import generate_test_code
+from code_generator import generate_test_code, generate_multiple_tests
 from dom_scraper import suggest_validations
 from executor import execute_tests_live
 from tinydb import TinyDB
@@ -23,6 +23,16 @@ st.write("Generate and run Selenium Java test cases with LLM + POM support")
 os.makedirs("cache", exist_ok=True)
 memory = MemoryManager()
 
+# Session state setup
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "generated_intent" not in st.session_state:
+    st.session_state.generated_intent = ""
+if "generated_code_ready" not in st.session_state:
+    st.session_state.generated_code_ready = False
+if "multi_module_specs" not in st.session_state:
+    st.session_state.multi_module_specs = []
+
 # ----- Sidebar Configuration -----
 with st.sidebar:
     st.header("Test Setup")
@@ -32,9 +42,8 @@ with st.sidebar:
     use_browserstack = st.checkbox("Run on BrowserStack?", False)
 
     llm_choice = st.radio("LLM Mode", ["local", "openai"], index=0)
-    set_llm_mode(llm_choice)  # Pass the selected mode to llm_engine
+    set_llm_mode(llm_choice)
 
-    # Memory management options
     st.markdown("---")
     st.subheader("🧹 Memory Controls")
     if st.button("⬇️ Export Memory Before Clearing"):
@@ -59,43 +68,53 @@ with st.sidebar:
             st.session_state.memory_exported = False
             st.rerun()
 
-# Decide which environment URL to test against
+# Get target URL
 target_url = custom_url if custom_url else get_target_url(env_choice)
 
-# ----- Chat Interface -----
+# Chat Interface
 st.subheader("🧠 Interactive Chat")
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "generated_intent" not in st.session_state:
-    st.session_state.generated_intent = ""
-if "generated_code_ready" not in st.session_state:
-    st.session_state.generated_code_ready = False
-
 user_input = st.text_area("Describe your test case or ask for changes", "", height=100)
 send_clicked = st.button("Send", disabled=not user_input.strip())
 
+# Helper: Extract class name from prompt
+def extract_class_name_from_prompt(prompt):
+    match = re.search(r"\b(?:for|to|on)\s+(\w+)(?:\s+page)?", prompt, re.IGNORECASE)
+    return match.group(1).capitalize() if match else "Test"
+
+# Helper: Get validation string from validations
+def get_validation_string(validations):
+    if not validations:
+        return None
+    for key in ["label", "text", "name", "value"]:
+        if key in validations[0]:
+            return validations[0][key]
+    return None
+
 if send_clicked and user_input.strip():
     with st.spinner("💬 Generating response from LLM..."):
-        st.markdown("**⏳ Preparing prompt...**")
-        time.sleep(0.5)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         st.session_state.chat_history.append({"role": "user", "content": user_input, "timestamp": timestamp})
-
-        st.markdown("**📱 Sending chat to LLM...**")
-        time.sleep(0.5)
         response = chat_with_llm(st.session_state.chat_history)
-
-        st.markdown("**🧠 LLM response received. Saving memory...**")
-        time.sleep(0.5)
         st.session_state.chat_history.append({"role": "assistant", "content": response, "timestamp": timestamp})
         memory.save_interaction(user_input, response)
-        st.session_state.generated_intent = user_input
-        st.session_state.generated_code_ready = False  # Reset flag after new prompt
+
+        class_name = extract_class_name_from_prompt(user_input)
+        dom_validations = suggest_validations(target_url)
+        validation_string = get_validation_string(dom_validations)
+
+        st.session_state.multi_module_specs.append({
+            "user_prompt": user_input,
+            "validations": dom_validations,
+            "url": target_url,
+            "class_name": class_name,
+            "validation_string": validation_string,
+            "browser": browser_choice
+        })
 
         st.balloons()
-        st.success("✅ Response from LLM received!")
+        st.success(f"✅ Stored module: `{class_name}` (ready for generation)")
 
-# Show editable chat history with timestamps
+# Show editable chat history
 st.markdown("### 💬 Chat History (Editable)")
 for i, msg in enumerate(st.session_state.chat_history):
     key = f"msg_{i}"
@@ -104,57 +123,22 @@ for i, msg in enumerate(st.session_state.chat_history):
     updated = st.text_area(label, msg["content"], key=key)
     st.session_state.chat_history[i]["content"] = updated
 
-# Extract a class name for the test case based on user prompt
-def extract_class_name_from_prompt(prompt):
-    match = re.search(r"\b(?:for|to|on)\s+(\w+)(?:\s+page)?", prompt, re.IGNORECASE)
-    if match:
-        return match.group(1).capitalize()
-    return "Test"
+# Show queued modules
+if st.session_state.multi_module_specs:
+    st.markdown("### 🧾 Queued Modules:")
+    for mod in st.session_state.multi_module_specs:
+        st.markdown(f"- `{mod['class_name']}` for {mod['url']}")
 
-# ----- Code Generation Block -----
-generate_clicked = st.sidebar.button("✅ Generate Test Case", disabled=not st.session_state.generated_intent)
+# Button: Generate all test modules
+generate_clicked = st.sidebar.button("🧪 Generate All Modules", disabled=not st.session_state.multi_module_specs)
 if generate_clicked:
-    if st.session_state.generated_intent:
-        with st.spinner("🛠 Generating test code and validations..."):
-            st.markdown("**🔍 Scraping UI DOM and generating validation logic...**")
-            dom_validations = suggest_validations(target_url)
-            class_name = extract_class_name_from_prompt(st.session_state.generated_intent)
+    with st.spinner("🔄 Generating all test modules..."):
+        generate_multiple_tests(st.session_state.multi_module_specs)
+    st.success("✅ All test classes generated!")
+    st.session_state.generated_code_ready = True
 
-            st.markdown("**🧱 Rendering templates and writing Java code...**")
-
-            def get_validation_string(validations):
-                if not validations:
-                    return "Welcome"
-                possible_keys = ["label", "text", "name", "value"]
-                for key in possible_keys:
-                    if key in validations[0]:
-                        return validations[0][key]
-                return "Welcome"
-
-            validation_string = get_validation_string(dom_validations)
-
-            java_files = generate_test_code(
-                st.session_state.generated_intent,
-                dom_validations,
-                target_url,
-                browser_choice,
-                class_name,
-                validation_string=validation_string
-            )
-
-            st.subheader("🛠 Generated Files")
-            for name, content in java_files.items():
-                st.text(f"{name}")
-                st.code(content, language='java')
-
-            st.success("Test code generated successfully!")
-            st.session_state.generated_code_ready = True
-    else:
-        st.warning("Please interact with the chatbot to describe what test case to generate.")
-
-# ----- Run Test Block -----
+# Button: Run tests
 run_clicked = st.sidebar.button("✅ Run Test Now", disabled=not st.session_state.generated_code_ready)
-
 if run_clicked:
     st.markdown("**📦 Packaging Maven project and starting WebDriver session...**")
     log_box = st.empty()
@@ -185,4 +169,3 @@ if run_clicked:
     st.code(final_logs, language="bash")
 
     st.session_state.generated_code_ready = False
-    # DO NOT call st.rerun() here to prevent log flicker

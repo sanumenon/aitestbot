@@ -8,3 +8,10 @@ torch
 requests
 accelerate
 sentencepiece
+langchain
+langchain-community
+sentence-transformers
+faiss-cpu
+beautifulsoup4
+html5lib lxml
+

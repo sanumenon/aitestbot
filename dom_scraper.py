@@ -83,3 +83,30 @@ def suggest_validations(url):
 
     driver.quit()
     return validations
+
+def suggest_validations_authenticated(url, username, password):
+    options = Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
+    driver = webdriver.Chrome(options=options)
+    driver.get(url)
+
+    try:
+        # Basic login flow using common selectors (customize as needed)
+        user_input = driver.find_element(By.XPATH, "//input[@type='email' or contains(@name, 'user')]")
+        pass_input = driver.find_element(By.XPATH, "//input[@type='password']")
+        login_btn = driver.find_element(By.XPATH, "//button[contains(text(), 'Log in') or @type='submit']")
+
+        user_input.send_keys(username)
+        pass_input.send_keys(password)
+        login_btn.click()
+
+        time.sleep(2)  # wait for login to process
+    except Exception as e:
+        print(f"⚠️ Login failed or not needed: {e}")
+
+    validations = suggest_validations(driver.current_url)
+    driver.quit()
+    return validations
+

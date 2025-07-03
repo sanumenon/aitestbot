@@ -4,9 +4,11 @@ from config import get_target_url, DEFAULT_BROWSER
 from llm_engine import chat_with_llm, set_llm_mode
 from memory_manager import MemoryManager
 from code_generator import generate_test_code, generate_multiple_tests
-from dom_scraper import suggest_validations
+from dom_scraper import suggest_validations, suggest_validations_authenticated
+from intent_cache import IntentCache
 from executor import execute_tests_live
 from tinydb import TinyDB
+from doc_ingestor import ingest_doc
 import os
 import json
 from datetime import datetime
@@ -14,6 +16,8 @@ import re
 import time
 import subprocess
 import hashlib
+import zipfile
+import webbrowser
 
 # Set Streamlit UI layout and title
 st.set_page_config(page_title="AI Test Bot for Charitable Impact", layout="wide")
@@ -22,7 +26,9 @@ st.write("Generate and run Selenium Java test cases with LLM + POM support")
 
 # Ensure cache directory exists for memory persistence
 os.makedirs("cache", exist_ok=True)
+os.makedirs("rag_versions", exist_ok=True)  # For RAG version control
 memory = MemoryManager()
+cache = IntentCache()
 
 # Session state setup
 if "chat_history" not in st.session_state:
@@ -33,6 +39,8 @@ if "generated_code_ready" not in st.session_state:
     st.session_state.generated_code_ready = False
 if "multi_module_specs" not in st.session_state:
     st.session_state.multi_module_specs = []
+if "llm_response_time" not in st.session_state:
+    st.session_state.llm_response_time = ""
 
 # ----- Sidebar Configuration -----
 with st.sidebar:
@@ -44,6 +52,14 @@ with st.sidebar:
 
     llm_choice = st.radio("LLM Mode", ["local", "openai"], index=0)
     set_llm_mode(llm_choice)
+
+    if llm_choice == "local":
+        local_model_name = st.selectbox("Local Model", [
+            "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+            "teknium/OpenHermes-2.5-Mistral-7B",
+            "mistralai/Mistral-7B-Instruct-v0.2"
+        ], index=0)
+        st.session_state.local_model_name = local_model_name
 
     st.markdown("---")
     st.subheader("🧹 Memory Controls")
@@ -69,6 +85,33 @@ with st.sidebar:
             st.session_state.memory_exported = False
             st.rerun()
 
+    st.subheader("📄 RAG Setup: Help Docs")
+    uploaded_file = st.file_uploader("Upload Help PDF", type="pdf")
+    doc_url = st.text_input("Or Enter Help Page URL")
+
+    if st.button("📥 Ingest Help Docs"):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        index_path = f"rag_versions/rag_{timestamp}"
+
+        if uploaded_file:
+            with open("cache/uploaded_help.pdf", "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            msg = ingest_doc("cache/uploaded_help.pdf", is_url=False)
+            if os.path.exists("rag_index"):
+                os.rename("rag_index", index_path)
+            st.success(f"{msg} ✅ Snapshot saved at `{index_path}`")
+        elif doc_url:
+            msg = ingest_doc(doc_url, is_url=True)
+            if os.path.exists("rag_index"):
+                os.rename("rag_index", index_path)
+            st.success(f"{msg} ✅ Snapshot saved at `{index_path}`")
+        else:
+            st.warning("Please upload a PDF or enter a URL.")
+
+    if st.button("🧹 Clear Intent Cache"):
+        msg = cache.clear_cache()
+        st.success(msg)
+
 # Get target URL
 target_url = custom_url if custom_url else get_target_url(env_choice)
 
@@ -77,75 +120,81 @@ st.subheader("🧠 Interactive Chat")
 user_input = st.text_area("Describe your test case or ask for changes", "", height=100)
 send_clicked = st.button("Send", disabled=not user_input.strip())
 
-# Helper: Extract class name from prompt
-def extract_multiple_modules_from_prompt(prompt):
-    page_names = re.findall(r"\b(\w+)\s+page", prompt, re.IGNORECASE)
-    if not page_names:
-        return ["Test"]  # fallback
-    return [name.capitalize() for name in page_names]
-
-# Helper: Get validation string from validations
-def get_validation_string(validations):
-    if not validations:
-        return None
-    for key in ["label", "text", "name", "value"]:
-        if key in validations[0]:
-            return validations[0][key]
-    return None
+# Show LLM response time
+if st.session_state.llm_response_time:
+    st.markdown(f"⏱️ **LLM Response Time:** {st.session_state.llm_response_time} seconds")
 
 # ==== MAIN CHAT SUBMISSION BLOCK ====
 if send_clicked and user_input.strip():
-    with st.spinner("💬 Generating response from LLM..."):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        st.session_state.chat_history.append({"role": "user", "content": user_input, "timestamp": timestamp})
+    cached_code = cache.get_cached(user_input)
+    if cached_code:
+        st.success("♻️ Using previously generated test code from cache.")
+        st.code(cached_code, language="java")
+    else:
+        with st.spinner("💬 Generating response from LLM..."):
+            start_time = time.time()
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            st.session_state.chat_history.append({"role": "user", "content": user_input, "timestamp": timestamp})
 
-        # Automatically embed credentials and URL if mentioned
-        if "@" in user_input and "/" in target_url:
-            enriched_prompt = (
-                f"Using the credentials and default URL or target URL provided, login to the app and continue test case steps.\n"
-                f"Credentials are likely included in the user message. Target URL: {target_url}\n"
-                f"Generate proper Selenium+TestNG test code based on this instruction."
-            )
-            st.session_state.chat_history.append({"role": "system", "content": enriched_prompt})
+            if "@" in user_input and "/" in user_input:
+                enriched_prompt = (
+                    f"Using the credentials and default URL or target URL provided, login to the app and continue test case steps.\n"
+                    f"Credentials are likely included in the user message. Target URL: {target_url}\n"
+                    f"Generate proper Selenium+TestNG test code based on this instruction."
+                )
+                st.session_state.chat_history.append({"role": "system", "content": enriched_prompt})
 
-        response = chat_with_llm(st.session_state.chat_history)
-        st.session_state.chat_history.append({"role": "assistant", "content": response, "timestamp": timestamp})
-        memory.save_interaction(user_input, response)
+            response = chat_with_llm(st.session_state.chat_history)
+            end_time = time.time()
+            st.session_state.llm_response_time = f"{end_time - start_time:.2f}"
 
-        page_names = extract_multiple_modules_from_prompt(user_input)
-        stored_classes = []
+            st.session_state.chat_history.append({"role": "assistant", "content": response, "timestamp": timestamp})
+            memory.save_interaction(user_input, response)
+            cache.store(user_input, response)
 
-        for name in page_names:
-            validation_url = target_url
-            dom_validations = suggest_validations(validation_url)
-            validation_string = get_validation_string(dom_validations)
+            def extract_multiple_modules_from_prompt(prompt):
+                page_names = re.findall(r"\\b(\\w+)\\s+page", prompt, re.IGNORECASE)
+                return [name.capitalize() for name in page_names] or ["Test"]
 
-            short_hash = hashlib.sha1((user_input + name).encode()).hexdigest()[:5]
-            existing_names = [m["class_name"] for m in st.session_state.multi_module_specs]
-            unique_class = name if name not in existing_names else f"{name}_{short_hash}"
+            def get_validation_string(validations):
+                for key in ["label", "text", "name", "value"]:
+                    if validations and key in validations[0]:
+                        return validations[0][key]
+                return None
 
-            st.session_state.multi_module_specs.append({
-                "user_prompt": user_input,
-                "validations": dom_validations,
-                "url": validation_url,
-                "class_name": unique_class,
-                "validation_string": validation_string,
-                "browser": browser_choice
-            })
+            page_names = extract_multiple_modules_from_prompt(user_input)
+            stored_classes = []
 
-            stored_classes.append(unique_class)
+            for name in page_names:
+                validation_url = target_url
+                if "@" in user_input and "/" in user_input:
+                    creds = re.findall(r"[\w\.-]+@[\w\.-]+\.[a-zA-Z]+\s*/\s*[^\s]+", user_input)
+                    if creds:
+                        username, password = creds[0].split("/")
+                        dom_validations = suggest_validations_authenticated(validation_url, username.strip(), password.strip())
+                    else:
+                        dom_validations = suggest_validations(validation_url)
+                else:
+                    dom_validations = suggest_validations(validation_url)
 
-        st.balloons()
-        st.success(f"✅ Stored modules: {', '.join(stored_classes)} (ready for generation)")
+                validation_string = get_validation_string(dom_validations)
+                short_hash = hashlib.sha1((user_input + name).encode()).hexdigest()[:5]
+                existing_names = [m["class_name"] for m in st.session_state.multi_module_specs]
+                unique_class = name if name not in existing_names else f"{name}_{short_hash}"
 
-# Show editable chat history
-st.markdown("### 💬 Chat History (Editable)")
-for i, msg in enumerate(st.session_state.chat_history):
-    key = f"msg_{i}"
-    timestamp = msg.get("timestamp", "")
-    label = f"[{timestamp}] User says:" if msg["role"] == "user" else f"[{timestamp}] AI response:"
-    updated = st.text_area(label, msg["content"], key=key)
-    st.session_state.chat_history[i]["content"] = updated
+                st.session_state.multi_module_specs.append({
+                    "user_prompt": user_input,
+                    "validations": dom_validations,
+                    "url": validation_url,
+                    "class_name": unique_class,
+                    "validation_string": validation_string,
+                    "browser": browser_choice
+                })
+
+                stored_classes.append(unique_class)
+
+            st.balloons()
+            st.success(f"✅ Stored modules: {', '.join(stored_classes)} (ready for generation)")
 
 # Show queued modules
 if st.session_state.multi_module_specs:
@@ -160,6 +209,16 @@ if generate_clicked:
         generate_multiple_tests(st.session_state.multi_module_specs)
     st.success("✅ All test classes generated!")
     st.session_state.generated_code_ready = True
+
+    # Offer zip download
+    test_zip_path = "cache/generated_tests.zip"
+    with zipfile.ZipFile(test_zip_path, 'w') as zipf:
+        for root, _, files in os.walk("generated_code"):
+            for file in files:
+                full_path = os.path.join(root, file)
+                zipf.write(full_path, os.path.relpath(full_path, "generated_code"))
+    with open(test_zip_path, "rb") as f:
+        st.sidebar.download_button("⬇️ Download Generated Tests", f, file_name="generated_tests.zip")
 
 # Button: Run tests
 run_clicked = st.sidebar.button("✅ Run Test Now", disabled=not st.session_state.generated_code_ready)
@@ -191,5 +250,16 @@ if run_clicked:
     st.success("✅ Test execution completed!")
     st.subheader("🚀 Final Test Execution Log")
     st.code(final_logs, language="bash")
+
+    # Download and open Extent report if available
+    report_path = "generated_code/test-output/ExtentReport.html"
+    if os.path.exists(report_path):
+        with open(report_path, "rb") as f:
+            st.download_button("📄 Download Extent Report", f, file_name="ExtentReport.html")
+
+        if st.button("🌐 Open Report in Browser"):
+            abs_path = os.path.abspath(report_path)
+            file_url = f"file://{abs_path}"
+            webbrowser.open_new_tab(file_url)
 
     st.session_state.generated_code_ready = False

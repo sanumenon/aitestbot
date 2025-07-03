@@ -13,6 +13,7 @@ from datetime import datetime
 import re
 import time
 import subprocess
+import hashlib
 
 # Set Streamlit UI layout and title
 st.set_page_config(page_title="AI Test Bot for Charitable Impact", layout="wide")
@@ -77,9 +78,11 @@ user_input = st.text_area("Describe your test case or ask for changes", "", heig
 send_clicked = st.button("Send", disabled=not user_input.strip())
 
 # Helper: Extract class name from prompt
-def extract_class_name_from_prompt(prompt):
-    match = re.search(r"\b(?:for|to|on)\s+(\w+)(?:\s+page)?", prompt, re.IGNORECASE)
-    return match.group(1).capitalize() if match else "Test"
+def extract_multiple_modules_from_prompt(prompt):
+    page_names = re.findall(r"\b(\w+)\s+page", prompt, re.IGNORECASE)
+    if not page_names:
+        return ["Test"]  # fallback
+    return [name.capitalize() for name in page_names]
 
 # Helper: Get validation string from validations
 def get_validation_string(validations):
@@ -90,29 +93,50 @@ def get_validation_string(validations):
             return validations[0][key]
     return None
 
+# ==== MAIN CHAT SUBMISSION BLOCK ====
 if send_clicked and user_input.strip():
     with st.spinner("💬 Generating response from LLM..."):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         st.session_state.chat_history.append({"role": "user", "content": user_input, "timestamp": timestamp})
+
+        # Automatically embed credentials and URL if mentioned
+        if "@" in user_input and "/" in target_url:
+            enriched_prompt = (
+                f"Using the credentials and default URL or target URL provided, login to the app and continue test case steps.\n"
+                f"Credentials are likely included in the user message. Target URL: {target_url}\n"
+                f"Generate proper Selenium+TestNG test code based on this instruction."
+            )
+            st.session_state.chat_history.append({"role": "system", "content": enriched_prompt})
+
         response = chat_with_llm(st.session_state.chat_history)
         st.session_state.chat_history.append({"role": "assistant", "content": response, "timestamp": timestamp})
         memory.save_interaction(user_input, response)
 
-        class_name = extract_class_name_from_prompt(user_input)
-        dom_validations = suggest_validations(target_url)
-        validation_string = get_validation_string(dom_validations)
+        page_names = extract_multiple_modules_from_prompt(user_input)
+        stored_classes = []
 
-        st.session_state.multi_module_specs.append({
-            "user_prompt": user_input,
-            "validations": dom_validations,
-            "url": target_url,
-            "class_name": class_name,
-            "validation_string": validation_string,
-            "browser": browser_choice
-        })
+        for name in page_names:
+            validation_url = target_url
+            dom_validations = suggest_validations(validation_url)
+            validation_string = get_validation_string(dom_validations)
+
+            short_hash = hashlib.sha1((user_input + name).encode()).hexdigest()[:5]
+            existing_names = [m["class_name"] for m in st.session_state.multi_module_specs]
+            unique_class = name if name not in existing_names else f"{name}_{short_hash}"
+
+            st.session_state.multi_module_specs.append({
+                "user_prompt": user_input,
+                "validations": dom_validations,
+                "url": validation_url,
+                "class_name": unique_class,
+                "validation_string": validation_string,
+                "browser": browser_choice
+            })
+
+            stored_classes.append(unique_class)
 
         st.balloons()
-        st.success(f"✅ Stored module: `{class_name}` (ready for generation)")
+        st.success(f"✅ Stored modules: {', '.join(stored_classes)} (ready for generation)")
 
 # Show editable chat history
 st.markdown("### 💬 Chat History (Editable)")

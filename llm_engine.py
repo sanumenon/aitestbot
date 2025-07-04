@@ -93,6 +93,22 @@ def set_llm_mode(mode: str):
 def chat_with_llm(prompt_messages: list, temperature=0.7) -> tuple[str, float]:
     start_time = time.time()
 
+    # Inject restriction prompt only if not already present
+    restriction_prompt = (
+        "You are a highly specialized AI test case generator for the application my.charitableimpact.com.\n"
+        "Only generate test automation code in Java using Selenium, TestNG, and Maven following the Page Object Model (POM).\n"
+        "Do not respond to unrelated queries. If a question is off-topic, reply with:\n"
+        "'❌ I can only help with test case generation for charitableimpact.com using Java + Selenium + TestNG + Maven.'\n"
+        "Valid environments include:\n"
+        "- https://my.charitableimpact.com (Production)\n"
+        "- https://qa.my.charitableimpact.com (QA)\n"
+        "- https://stage.my.charitableimpact.com (Stage)"
+    )
+
+    if not any(m.get("role") == "system" and "You are a highly specialized AI" in m.get("content", "") for m in prompt_messages):
+        prompt_messages.insert(0, {"role": "system", "content": restriction_prompt})
+
+    # Process based on LLM mode
     if llm_mode == "local" and local_model:
         try:
             formatted_input = local_tokenizer.apply_chat_template(
@@ -127,6 +143,7 @@ def chat_with_llm(prompt_messages: list, temperature=0.7) -> tuple[str, float]:
     elapsed_time = round(end_time - start_time, 2)
 
     return final_response, elapsed_time
+
 
 
 

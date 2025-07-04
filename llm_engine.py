@@ -23,7 +23,11 @@ local_chatbot_pipeline = None
 openai_client = None
 llm_mode = "local"
 
-
+# Initialize local model and tokenizer
+# This will be called at startup to preload the default local model
+# and tokenizer to avoid delays during user interactions.
+# It will also handle the case where the local model fails to load.
+# If the local model fails, it will fall back to OpenAI mode if available.
 def initialize_local_model():
     global local_tokenizer, local_model, local_chatbot_pipeline
     try:
@@ -31,11 +35,15 @@ def initialize_local_model():
         print(f"🧠 Loading local model: {model_id}")
 
         local_tokenizer = AutoTokenizer.from_pretrained(model_id)
+
+        # ✅ Fix: disable meta tensors and allow CPU-based loading
         local_model = AutoModelForCausalLM.from_pretrained(
-            model_id,
-            torch_dtype=torch.float32,
-            device_map="auto"
-        )
+        model_id,
+        torch_dtype=torch.float32,
+        low_cpu_mem_usage=True,
+        device_map={"": "cpu"}  # ✅ Force CPU load safely
+    )
+
 
         local_chatbot_pipeline = pipeline(
             "text-generation",
@@ -49,9 +57,11 @@ def initialize_local_model():
 
         print("✅ Local model loaded successfully.")
         return True
+
     except Exception as e:
         print(f"❌ Failed to load local model: {e}")
         return False
+
 
 
 def initialize_openai_client():
@@ -92,6 +102,8 @@ def set_llm_mode(mode: str):
 
 def chat_with_llm(prompt_messages: list, temperature=0.7) -> tuple[str, float]:
     start_time = time.time()
+    # Debug logging
+    print(f"🔍 chat_with_llm called with mode: {llm_mode}")
 
     # Inject restriction prompt only if not already present
     restriction_prompt = (

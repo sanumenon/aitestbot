@@ -1,7 +1,7 @@
 import hashlib
 from tinydb import TinyDB, Query
 import os
-
+# This file implements a simple intent cache using TinyDB to store and retrieve code snippets based on user prompts.
 class IntentCache:
     def __init__(self, db_path='cache/intent_cache.json'):
         os.makedirs(os.path.dirname(db_path), exist_ok=True)

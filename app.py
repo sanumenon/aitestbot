@@ -1,7 +1,7 @@
 # app.py
 import streamlit as st
 from config import get_target_url, DEFAULT_BROWSER
-from llm_engine import chat_with_llm, set_llm_mode
+from llm_engine import chat_with_llm, set_llm_mode,initialize_local_model
 from memory_manager import MemoryManager
 from code_generator import generate_test_code, generate_multiple_tests
 from dom_scraper import suggest_validations, suggest_validations_authenticated
@@ -18,6 +18,7 @@ import subprocess
 import hashlib
 import zipfile
 import webbrowser
+import time
 
 # Set Streamlit UI layout and title
 st.set_page_config(page_title="AI Test Bot for Charitable Impact", layout="wide")
@@ -51,15 +52,25 @@ with st.sidebar:
     use_browserstack = st.checkbox("Run on BrowserStack?", False)
 
     llm_choice = st.radio("LLM Mode", ["local", "openai"], index=0)
-    set_llm_mode(llm_choice)
-
     if llm_choice == "local":
+        previous_model = st.session_state.get("local_model_name", "")
         local_model_name = st.selectbox("Local Model", [
             "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
             "teknium/OpenHermes-2.5-Mistral-7B",
             "mistralai/Mistral-7B-Instruct-v0.2"
         ], index=0)
-        st.session_state.local_model_name = local_model_name
+
+        if local_model_name != previous_model:
+            st.session_state.local_model_name = local_model_name
+            with st.spinner(f"🧠 Loading model: {local_model_name}... please wait"):
+                success = initialize_local_model()
+            if success:
+                st.session_state["last_loaded_model"] = local_model_name
+                st.toast(f"✅ Loaded model: {local_model_name}", icon="🧠")
+        else:
+            st.error(f"❌ Failed to load model: {local_model_name}")
+
+    set_llm_mode(llm_choice)
 
     st.markdown("---")
     st.subheader("🧹 Memory Controls")
@@ -122,7 +133,15 @@ send_clicked = st.button("Send", disabled=not user_input.strip())
 
 # Show LLM response time
 if st.session_state.llm_response_time:
-    st.markdown(f"⏱️ **LLM Response Time:** {st.session_state.llm_response_time} seconds")
+    st.markdown(f"⏱️ **LLM Response Time:** `{st.session_state.llm_response_time}` (hh:mm:ss:ms)")
+def format_elapsed_time(start, end):
+    elapsed = end_time - start_time
+    hours = int(elapsed // 3600)
+    minutes = int((elapsed % 3600) // 60)
+    seconds = int(elapsed % 60)
+    milliseconds = int((elapsed - int(elapsed)) * 1000)
+    formatted_time = f"{hours:02}:{minutes:02}:{seconds:02}:{milliseconds:03}"
+    return formatted_time
 
 # ==== MAIN CHAT SUBMISSION BLOCK ====
 if send_clicked and user_input.strip():
@@ -130,6 +149,15 @@ if send_clicked and user_input.strip():
     if cached_code:
         st.success("♻️ Using previously generated test code from cache.")
         st.code(cached_code, language="java")
+
+        # Save cached code to disk so it can be compiled and executed
+        os.makedirs("generated_code/src/test/java", exist_ok=True)
+        java_file_path = os.path.join("generated_code/src/test/java", "CachedTest.java")
+        with open(java_file_path, "w") as f:
+            f.write(cached_code)
+
+        st.session_state.generated_code_ready = True
+        st.info("✅ Cached code written to `generated_code/src/test/java/CachedTest.java` and ready to run.")
     else:
         with st.spinner("💬 Generating response from LLM..."):
             start_time = time.time()
@@ -146,7 +174,7 @@ if send_clicked and user_input.strip():
 
             response = chat_with_llm(st.session_state.chat_history)
             end_time = time.time()
-            st.session_state.llm_response_time = f"{end_time - start_time:.2f}"
+            st.session_state.llm_response_time = format_elapsed_time(start_time, end_time) #formatted_time
 
             st.session_state.chat_history.append({"role": "assistant", "content": response, "timestamp": timestamp})
             memory.save_interaction(user_input, response)
@@ -251,15 +279,28 @@ if run_clicked:
     st.subheader("🚀 Final Test Execution Log")
     st.code(final_logs, language="bash")
 
-    # Download and open Extent report if available
-    report_path = "generated_code/test-output/ExtentReport.html"
+    # Extent report handling
+    report_path = os.path.abspath("generated_code/generated_code/test-output/ExtentReport.html")
+    # Wait a short while to give file system time to complete write
+    max_wait = 10  # seconds
+    waited = 0
+    while not os.path.exists(report_path) and waited < max_wait:
+        time.sleep(1)
+        waited += 1
+
     if os.path.exists(report_path):
+        col1, col2 = st.columns([1, 1])
+
         with open(report_path, "rb") as f:
-            st.download_button("📄 Download Extent Report", f, file_name="ExtentReport.html")
+            with col1:
+                st.download_button("📄 Download Extent Report", f, file_name="ExtentReport.html", mime="text/html")
 
-        if st.button("🌐 Open Report in Browser"):
-            abs_path = os.path.abspath(report_path)
-            file_url = f"file://{abs_path}"
-            webbrowser.open_new_tab(file_url)
+        with col2:
+            open_report = st.button("🌐 View Report in Browser")
+            if open_report:
+                file_url = f"file://{report_path}"
+                webbrowser.open_new_tab(file_url)
+                st.success("✅ Report opened in new browser tab.")
+    else:
+        st.warning("⚠️ Extent report not found. Check if test execution was successful.")
 
-    st.session_state.generated_code_ready = False

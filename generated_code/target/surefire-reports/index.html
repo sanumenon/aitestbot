@@ -92,7 +92,7 @@
               <div class="suite-section-content">
                 <ul>
                   <li>
-                    <span class="method-stats">2 methods,   2 passed</span>
+                    <span class="method-stats">1 method,   1 passed</span>
                   </li>
                   <li>
                     <span class="method-list-title passed">Passed methods</span>
@@ -103,12 +103,7 @@
                     <div class="method-list-content passed suite-Test_Suite">
                       <span>
                         <img src="passed.png" width="3%"/>
-                        <a href="#" panel-name="suite-Test_Suite" title="com.charitableimpact.LoginTest" class="method navigator-link" hash-for-method="testLogin">testLogin</a> <!-- method navigator-link -->
-                      </span>
-                      <br/>
-                      <span>
-                        <img src="passed.png" width="3%"/>
-                        <a href="#" panel-name="suite-Test_Suite" title="com.charitableimpact.ProfileTest" class="method navigator-link" hash-for-method="testProfile">testProfile</a> <!-- method navigator-link -->
+                        <a href="#" panel-name="suite-Test_Suite" title="com.charitableimpact.TestTest" class="method navigator-link" hash-for-method="testTest">testTest</a> <!-- method navigator-link -->
                       </span>
                       <br/>
                     </div> <!-- method-list-content passed suite-Test_Suite -->
@@ -126,29 +121,14 @@
           <div class="suite-Test_Suite-class-passed">
             <div class="main-panel-header rounded-window-top">
               <img src="passed.png"/>
-              <span class="class-name">com.charitableimpact.ProfileTest</span>
+              <span class="class-name">com.charitableimpact.TestTest</span>
             </div> <!-- main-panel-header rounded-window-top -->
             <div class="main-panel-content rounded-window-bottom">
               <div class="method">
                 <div class="method-content">
-                  <a name="testProfile">
-                  </a> <!-- testProfile -->
-                  <span class="method-name">testProfile</span>
-                </div> <!-- method-content -->
-              </div> <!-- method -->
-            </div> <!-- main-panel-content rounded-window-bottom -->
-          </div> <!-- suite-Test_Suite-class-passed -->
-          <div class="suite-Test_Suite-class-passed">
-            <div class="main-panel-header rounded-window-top">
-              <img src="passed.png"/>
-              <span class="class-name">com.charitableimpact.LoginTest</span>
-            </div> <!-- main-panel-header rounded-window-top -->
-            <div class="main-panel-content rounded-window-bottom">
-              <div class="method">
-                <div class="method-content">
-                  <a name="testLogin">
-                  </a> <!-- testLogin -->
-                  <span class="method-name">testLogin</span>
+                  <a name="testTest">
+                  </a> <!-- testTest -->
+                  <span class="method-name">testTest</span>
                 </div> <!-- method-content -->
               </div> <!-- method -->
             </div> <!-- main-panel-content rounded-window-bottom -->
@@ -171,10 +151,8 @@
       &lt;package name=&quot;com.charitableimpact&quot;/&gt;
     &lt;/packages&gt;
     &lt;classes&gt;
-      &lt;class name=&quot;com.charitableimpact.ProfilePage&quot;/&gt;
-      &lt;class name=&quot;com.charitableimpact.LoginPage&quot;/&gt;
-      &lt;class name=&quot;com.charitableimpact.LoginTest&quot;/&gt;
-      &lt;class name=&quot;com.charitableimpact.ProfileTest&quot;/&gt;
+      &lt;class name=&quot;com.charitableimpact.TestTest&quot;/&gt;
+      &lt;class name=&quot;com.charitableimpact.TestPage&quot;/&gt;
     &lt;/classes&gt;
   &lt;/test&gt; &lt;!-- All Tests --&gt;
 &lt;/suite&gt; &lt;!-- Test Suite --&gt;
@@ -188,7 +166,7 @@
           <div class="main-panel-content rounded-window-bottom">
             <ul>
               <li>
-                <span class="test-name">All Tests (4 classes)</span>
+                <span class="test-name">All Tests (2 classes)</span>
               </li>
             </ul>
           </div> <!-- main-panel-content rounded-window-bottom -->
@@ -214,20 +192,16 @@ data.addColumn('number', 'Number');
 data.addColumn('string', 'Method');
 data.addColumn('string', 'Class');
 data.addColumn('number', 'Time (ms)');
-data.addRows(2);
+data.addRows(1);
 data.setCell(0, 0, 0)
-data.setCell(0, 1, 'testLogin')
-data.setCell(0, 2, 'com.charitableimpact.LoginTest')
-data.setCell(0, 3, 8);
-data.setCell(1, 0, 1)
-data.setCell(1, 1, 'testProfile')
-data.setCell(1, 2, 'com.charitableimpact.ProfileTest')
-data.setCell(1, 3, 1);
+data.setCell(0, 1, 'testTest')
+data.setCell(0, 2, 'com.charitableimpact.TestTest')
+data.setCell(0, 3, 112);
 window.suiteTableData['Test_Suite']= { tableData: data, tableDiv: 'times-div-Test_Suite'}
 return data;
 }
               </script>
-              <span class="suite-total-time">Total running time: 9 ms</span>
+              <span class="suite-total-time">Total running time: 112 ms</span>
               <div id="times-div-Test_Suite">
               </div> <!-- times-div-Test_Suite -->
             </div> <!-- times-div -->
@@ -253,33 +227,18 @@ return data;
           </div> <!-- main-panel-header rounded-window-top -->
           <div class="main-panel-content rounded-window-bottom">
             <div class="chronological-class">
-              <div class="chronological-class-name">com.charitableimpact.LoginTest</div> <!-- chronological-class-name -->
+              <div class="chronological-class-name">com.charitableimpact.TestTest</div> <!-- chronological-class-name -->
               <div class="configuration-class before">
                 <span class="method-name">setup</span>
                 <span class="method-start">0 ms</span>
               </div> <!-- configuration-class before -->
               <div class="test-method">
-                <span class="method-name">testLogin</span>
-                <span class="method-start">5869 ms</span>
+                <span class="method-name">testTest</span>
+                <span class="method-start">6041 ms</span>
               </div> <!-- test-method -->
               <div class="configuration-class after">
                 <span class="method-name">teardown</span>
-                <span class="method-start">5888 ms</span>
-              </div> <!-- configuration-class after -->
-            </div> <!-- chronological-class -->
-            <div class="chronological-class">
-              <div class="chronological-class-name">com.charitableimpact.ProfileTest</div> <!-- chronological-class-name -->
-              <div class="configuration-class before">
-                <span class="method-name">setup</span>
-                <span class="method-start">6764 ms</span>
-              </div> <!-- configuration-class before -->
-              <div class="test-method">
-                <span class="method-name">testProfile</span>
-                <span class="method-start">8947 ms</span>
-              </div> <!-- test-method -->
-              <div class="configuration-class after">
-                <span class="method-name">teardown</span>
-                <span class="method-start">8950 ms</span>
+                <span class="method-start">6214 ms</span>
               </div> <!-- configuration-class after -->
           </div> <!-- main-panel-content rounded-window-bottom -->
         </div> <!-- panel -->

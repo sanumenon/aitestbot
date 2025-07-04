@@ -1,6 +1,4 @@
-com/charitableimpact/ProfilePage.class
 com/charitableimpact/config/ExtentReportManager.class
 com/charitableimpact/config/TestListener.class
-com/charitableimpact/LoginPage.class
-com/charitableimpact/ProfileTest.class
-com/charitableimpact/LoginTest.class
+com/charitableimpact/TestPage.class
+com/charitableimpact/TestTest.class

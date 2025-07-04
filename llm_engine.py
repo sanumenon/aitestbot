@@ -7,6 +7,7 @@ from rag_search import retrieve_context
 import torch
 import warnings
 import streamlit as st
+import time
 
 warnings.filterwarnings("ignore")
 
@@ -88,7 +89,10 @@ def set_llm_mode(mode: str):
     print(f"🔁 LLM mode set to: {llm_mode}")
 
 
-def chat_with_llm(prompt_messages: list, temperature=0.7) -> str:
+
+def chat_with_llm(prompt_messages: list, temperature=0.7) -> tuple[str, float]:
+    start_time = time.time()
+
     if llm_mode == "local" and local_model:
         try:
             formatted_input = local_tokenizer.apply_chat_template(
@@ -101,9 +105,9 @@ def chat_with_llm(prompt_messages: list, temperature=0.7) -> str:
                 temperature=temperature,
                 pad_token_id=local_tokenizer.eos_token_id
             )[0]["generated_text"]
-            return response.replace(formatted_input, "").strip()
+            final_response = response.replace(formatted_input, "").strip()
         except Exception as e:
-            return f"❌ Local model inference failed: {str(e)}"
+            final_response = f"❌ Local model inference failed: {str(e)}"
 
     elif llm_mode == "openai" and openai_client:
         try:
@@ -112,12 +116,18 @@ def chat_with_llm(prompt_messages: list, temperature=0.7) -> str:
                 messages=prompt_messages,
                 temperature=temperature,
             )
-            return response.choices[0].message.content.strip()
+            final_response = response.choices[0].message.content.strip()
         except Exception as e:
-            return f"❌ OpenAI call failed: {str(e)}"
+            final_response = f"❌ OpenAI call failed: {str(e)}"
 
     else:
-        return "❌ Selected LLM mode is not available or failed to initialize."
+        final_response = "❌ Selected LLM mode is not available or failed to initialize."
+
+    end_time = time.time()
+    elapsed_time = round(end_time - start_time, 2)
+
+    return final_response, elapsed_time
+
 
 
 # Use RAG-enhanced chat for test case generation

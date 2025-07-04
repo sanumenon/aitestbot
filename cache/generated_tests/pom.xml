@@ -1,0 +1,87 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" 
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.charitableimpact</groupId>
+    <artifactId>test-automation</artifactId>
+    <version>1.0</version>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- Selenium -->
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>4.21.0</version>
+        </dependency>
+
+        <!-- WebDriverManager -->
+        <dependency>
+            <groupId>io.github.bonigarcia</groupId>
+            <artifactId>webdrivermanager</artifactId>
+            <version>5.8.0</version>
+        </dependency>
+
+        <!-- TestNG -->
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>7.10.2</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Extend Reports -->
+        <dependency>
+            <groupId>com.aventstack</groupId>
+            <artifactId>extentreports</artifactId>
+           <version>5.0.9</version> <!-- Use latest stable -->
+        </dependency>
+        <!-- For screen shots -->  
+        <dependency>
+            <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>2.11.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.30</version>
+             <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <suiteXmlFiles>
+                        <suiteXmlFile>testng.xml</suiteXmlFile>
+                    </suiteXmlFiles>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+<!-- This is a Maven POM file for a test automation project using Selenium and TestNG.
+     It specifies the project metadata, dependencies, and build configurations. -->
+<!-- The project uses Java 11 and includes the Selenium Java library for browser automation
+     and TestNG for testing framework functionalities. The Maven Surefire plugin is configured
+     to run tests that match the naming pattern `*Test.java`. -->
+<!-- The POM file is structured to follow Maven conventions and includes necessary XML namespaces
+     and schema locations for validation. It is designed to be easily extendable for future dependencies
+     or plugins as the project evolves. -->
+<!-- Comments are included to provide context and explanations for each section of the POM file,
+     making it easier for developers to understand the purpose and configuration of the project. -->
+<!-- The POM file is intended to be used in a Java project managed by Maven, facilitating
+     dependency management, build processes, and test execution. -->
+<!-- Ensure that the POM file is saved with UTF-8 encoding to avoid issues with special
+     characters in the project metadata or dependencies. -->

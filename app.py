@@ -60,15 +60,18 @@ with st.sidebar:
             "mistralai/Mistral-7B-Instruct-v0.2"
         ], index=0)
 
-        if local_model_name != previous_model:
+        if local_model_name != previous_model or "last_loaded_model" not in st.session_state:
             st.session_state.local_model_name = local_model_name
             with st.spinner(f"🧠 Loading model: {local_model_name}... please wait"):
                 success = initialize_local_model()
             if success:
                 st.session_state["last_loaded_model"] = local_model_name
                 st.toast(f"✅ Loaded model: {local_model_name}", icon="🧠")
+            else:
+                st.error(f"❌ Failed to load model: {local_model_name}")
         else:
-            st.error(f"❌ Failed to load model: {local_model_name}")
+            st.info(f"✅ Model already loaded: {local_model_name}")
+
 
     set_llm_mode(llm_choice)
 
@@ -132,8 +135,8 @@ user_input = st.text_area("Describe your test case or ask for changes", "", heig
 send_clicked = st.button("Send", disabled=not user_input.strip())
 
 # Show LLM response time
-if st.session_state.llm_response_time:
-    st.markdown(f"⏱️ **LLM Response Time:** `{st.session_state.llm_response_time}` (hh:mm:ss:ms)")
+# if st.session_state.llm_response_time:
+#     st.markdown(f"⏱️ **LLM Response Time:** `{st.session_state.llm_response_time}` (hh:mm:ss:ms)")
 def format_elapsed_time(start, end):
     elapsed = end_time - start_time
     hours = int(elapsed // 3600)
@@ -143,6 +146,14 @@ def format_elapsed_time(start, end):
     formatted_time = f"{hours:02}:{minutes:02}:{seconds:02}:{milliseconds:03}"
     return formatted_time
 
+def format_llm_elapsed_time(elapsed_seconds: float) -> str:
+    hours = int(elapsed_seconds // 3600)
+    minutes = int((elapsed_seconds % 3600) // 60)
+    seconds = int(elapsed_seconds % 60)
+    milliseconds = int((elapsed_seconds - int(elapsed_seconds)) * 1000)
+    return f"{hours:02}:{minutes:02}:{seconds:02}:{milliseconds:03}"
+
+
 # ==== MAIN CHAT SUBMISSION BLOCK ====
 if send_clicked and user_input.strip():
     cached_code = cache.get_cached(user_input)
@@ -151,8 +162,8 @@ if send_clicked and user_input.strip():
         st.code(cached_code, language="java")
 
         # Save cached code to disk so it can be compiled and executed
-        os.makedirs("generated_code/src/test/java", exist_ok=True)
-        java_file_path = os.path.join("generated_code/src/test/java", "CachedTest.java")
+        os.makedirs("generated_code/src/test/java/com/charitableimpact", exist_ok=True)
+        java_file_path = os.path.join("generated_code/src/test/java/com/charitableimpact", "CachedTest.java")
         with open(java_file_path, "w") as f:
             f.write(cached_code)
 
@@ -172,9 +183,11 @@ if send_clicked and user_input.strip():
                 )
                 st.session_state.chat_history.append({"role": "system", "content": enriched_prompt})
 
-            response = chat_with_llm(st.session_state.chat_history)
+            response, llm_response_time = chat_with_llm(st.session_state.chat_history)
+            st.session_state.llm_response_time = f"{llm_response_time} sec"
+            formatted_time = format_llm_elapsed_time(llm_response_time)
+            st.metric(label="🧠 LLM Response Time", value=formatted_time)
             end_time = time.time()
-            st.session_state.llm_response_time = format_elapsed_time(start_time, end_time) #formatted_time
 
             st.session_state.chat_history.append({"role": "assistant", "content": response, "timestamp": timestamp})
             memory.save_interaction(user_input, response)
@@ -278,10 +291,14 @@ if run_clicked:
     st.success("✅ Test execution completed!")
     st.subheader("🚀 Final Test Execution Log")
     st.code(final_logs, language="bash")
+    st.session_state.test_execution_complete = True
 
-    # Extent report handling
+# Extent report handling
+if st.session_state.get("test_execution_complete", False):
+
     report_path = os.path.abspath("generated_code/generated_code/test-output/ExtentReport.html")
-    # Wait a short while to give file system time to complete write
+
+    # Wait for report to be written
     max_wait = 10  # seconds
     waited = 0
     while not os.path.exists(report_path) and waited < max_wait:
@@ -293,14 +310,13 @@ if run_clicked:
 
         with open(report_path, "rb") as f:
             with col1:
-                st.download_button("📄 Download Extent Report", f, file_name="ExtentReport.html", mime="text/html")
+                st.download_button(
+                    "📄 Download Extent Report",
+                    f,
+                    file_name="ExtentReport.html",
+                    mime="text/html"
+                )
 
-        with col2:
-            open_report = st.button("🌐 View Report in Browser")
-            if open_report:
-                file_url = f"file://{report_path}"
-                webbrowser.open_new_tab(file_url)
-                st.success("✅ Report opened in new browser tab.")
+        st.warning("🧾 Please open the downloaded report manually in your browser to view the full styled report.")
     else:
         st.warning("⚠️ Extent report not found. Check if test execution was successful.")
-

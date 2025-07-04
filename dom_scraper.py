@@ -2,6 +2,9 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 import re
+import time
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
 def sanitize_name(name):
@@ -93,20 +96,38 @@ def suggest_validations_authenticated(url, username, password):
     driver.get(url)
 
     try:
-        # Basic login flow using common selectors (customize as needed)
-        user_input = driver.find_element(By.XPATH, "//input[@type='email' or contains(@name, 'user')]")
-        pass_input = driver.find_element(By.XPATH, "//input[@type='password']")
-        login_btn = driver.find_element(By.XPATH, "//button[contains(text(), 'Log in') or @type='submit']")
+        wait = WebDriverWait(driver, 10)
 
+        # Wait until email/username input is present
+        user_input = wait.until(EC.presence_of_element_located(
+            (By.XPATH, "//input[@type='email' or contains(@name, 'user') or contains(@id, 'user')]")
+        ))
+
+        pass_input = wait.until(EC.presence_of_element_located(
+            (By.XPATH, "//input[@type='password']")
+        ))
+
+        login_btn = wait.until(EC.presence_of_element_located(
+            (By.XPATH, "//button[contains(text(), 'Log in') or contains(text(), 'Login') or @type='submit']")
+        ))
+
+        user_input.clear()
         user_input.send_keys(username)
+        pass_input.clear()
         pass_input.send_keys(password)
         login_btn.click()
 
-        time.sleep(2)  # wait for login to process
+        # Optional wait for post-login redirect
+        time.sleep(3)
+
     except Exception as e:
         print(f"⚠️ Login failed or not needed: {e}")
 
-    validations = suggest_validations(driver.current_url)
+    # Capture current (possibly post-login) URL and validate
+    current_url = driver.current_url
+    print(f"🔄 Current page after login (or fallback): {current_url}")
+
+    validations = suggest_validations(current_url)
     driver.quit()
     return validations
 

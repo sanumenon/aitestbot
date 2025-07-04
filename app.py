@@ -169,6 +169,20 @@ if send_clicked and user_input.strip():
 
         st.session_state.generated_code_ready = True
         st.info("✅ Cached code written to `generated_code/src/test/java/CachedTest.java` and ready to run.")
+        # Inject dummy entry to enable "Generate All Modules"
+        short_hash = hashlib.sha1((user_input).encode()).hexdigest()[:5]
+        class_name = f"CachedTest_{short_hash}"
+        if class_name not in [mod['class_name'] for mod in st.session_state.multi_module_specs]:
+    
+            st.session_state.multi_module_specs.append({
+            "user_prompt": user_input,
+            "validations": [],
+            "url": target_url,
+            "class_name": class_name,
+            "validation_string": None,
+            "browser": browser_choice
+            })
+
     else:
         with st.spinner("💬 Generating response from LLM..."):
             start_time = time.time()

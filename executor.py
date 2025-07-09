@@ -1,3 +1,4 @@
+#executor.py
 import subprocess
 import streamlit as st
 
@@ -8,7 +9,7 @@ def execute_tests_live(cwd="generated_code", browser="chrome", use_browserstack=
     full_log = ""
     try:
         # Build Maven command
-        mvn_cmd = ["mvn", "clean", "test", "-U"]
+        mvn_cmd = ["mvn", "clean", "test", "-U", "-DsuiteXmlFile=testng.xml"]
         
         # Optional: pass browserstack flag to tests
         if use_browserstack:

@@ -11,33 +11,44 @@ public class {{ class_name }}Page {
     }
 
     {% for element in elements %}
-    By {{ element.name }}Locator = By.xpath("{{ element.xpath }}");
+    By {{ element.name }}Locator = By.{{ element.by | default("xpath") }}("{{ element.selector }}");
 
-    public void interactWith{{ element.name|capitalize }}() {
+    public void interactWith{{ element.name|title|replace('_', '') }}() {
         WebElement element = driver.findElement({{ element.name }}Locator);
         ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", element);
 
         {% if element.is_dropdown %}
         Select dropdown = new Select(element);
-        dropdown.selectByIndex(1);
+        dropdown.selectByVisibleText("{{ element.value | default('Option 1') }}");
+
         {% elif element.is_textarea %}
         element.clear();
-        element.sendKeys("Sample multiline input");
+        element.sendKeys("{{ element.value | default('Sample multiline input') }}");
+
         {% elif element.is_button %}
         element.click();
+
         {% elif element.is_checkbox %}
-        if (!element.isSelected()) {
+        boolean shouldCheck = {{ element.should_check | default(True) | string|lower }};
+        if (shouldCheck && !element.isSelected()) {
+            element.click();
+        } else if (!shouldCheck && element.isSelected()) {
             element.click();
         }
+
         {% elif element.is_radiobutton %}
         element.click();
+
+        {% elif element.is_fileupload %}
+        element.sendKeys("{{ element.file_path | default('/path/to/file.png') }}");
+
         {% else %}
         element.clear();
-        element.sendKeys("Test input");
+        element.sendKeys("{{ element.value | default('Test input') }}");
         {% endif %}
     }
 
-    public By get{{ element.name|capitalize }}Locator() {
+    public By get{{ element.name|title|replace('_', '') }}Locator() {
         return {{ element.name }}Locator;
     }
     {% endfor %}

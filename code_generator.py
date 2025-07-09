@@ -1,4 +1,3 @@
-#code_generator.py
 from jinja2 import Template
 import os
 import keyword
@@ -9,7 +8,6 @@ import re
 
 JAVA_RESERVED_KEYWORDS = {...}  # same as before
 
-# --- Enhanced Prompt Splitter ---
 def split_prompt_into_tasks(prompt: str) -> list:
     delimiters = [' and ', ' then ', '\n', '.', ',']
     for d in delimiters:
@@ -26,25 +24,140 @@ def load_template(name):
     with open(f"templates/{name}", "r") as f:
         return Template(f.read())
 
+def strip_duplicate_imports(java_code):
+    seen = set()
+    result = []
+    for line in java_code.splitlines():
+        if line.strip().startswith("import"):
+            if line.strip() not in seen:
+                result.append(line)
+                seen.add(line.strip())
+        else:
+            result.append(line)
+    return "\n".join(result)
+
+def convert_to_findby(code):
+    pattern = re.compile(r'driver\.findElement\(By\.(\w+)\("(.*?)"\)\)')
+    replacements = {
+        'id': '@FindBy(id="{val}")',
+        'xpath': '@FindBy(xpath="{val}")',
+        'cssSelector': '@FindBy(css="{val}")',
+        'name': '@FindBy(name="{val}")'
+    }
+    lines = code.splitlines()
+    output = []
+    for line in lines:
+        match = pattern.search(line)
+        if match:
+            by_type, value = match.group(1), match.group(2)
+            if by_type in replacements:
+                annotation = replacements[by_type].format(val=value)
+                output.append(f"    {annotation}")
+                output.append(f"    private WebElement {value.replace('-', '_')};")
+                continue
+        output.append(line)
+    return "\n".join(output)
+
+
+
+### ✅ How to Fix (Defensive Extraction Strategy)
+
+def extract_classes_from_llm_code(llm_java_code):
+    llm_java_code = llm_java_code.strip().replace("\r\n", "\n")
+
+    # 🔁 Normalize common variants
+    llm_java_code = re.sub(r"(?i)^===\s*(page|test)\s*object\s*class\s*:", r"=== \1 OBJECT CLASS:", llm_java_code, flags=re.MULTILINE)
+    llm_java_code = re.sub(r"(?i)^===\s*(page|test)\s*class\s*:", r"=== \1 OBJECT CLASS:", llm_java_code, flags=re.MULTILINE)
+
+    marker_pattern = r"(?i)==+\s*(page|test)\s*object\s*class\s*:\s*([a-zA-Z0-9_]+)\s*==+\s*```(?:java)?\s*\n(.*?)```"
+    matches = re.findall(marker_pattern, llm_java_code, re.DOTALL)
+
+    # 🧪 Logging
+    print(f"🧪 Extracted {len(matches)} class blocks from LLM.")
+    for ctype, cname, body in matches:
+        first_line = body.strip().splitlines()[0] if body.strip().splitlines() else "[EMPTY]"
+        print(f"  - {ctype.upper()} CLASS: {cname}, First line: {first_line}")
+
+    # 🛡️ Defensive fallback if only one match found
+    if len(matches) == 1:
+        print("⚠️ Only one class block found. Trying fallback parse...")
+        class_blocks = re.findall(r'```java\n(.*?)\n```', llm_java_code, re.DOTALL)
+        if len(class_blocks) > 1:
+            used_names = [m[1] for m in matches]
+            for code_block in class_blocks:
+                if not any(name in code_block for name in used_names):
+                    inferred_name_match = re.search(r'public\s+class\s+([A-Za-z0-9_]+)', code_block)
+                    if inferred_name_match:
+                        name = inferred_name_match.group(1)
+                        inferred_type = "test" if "Test" in name else "page"
+                        print(f"🛠️ Fallback captured: {inferred_type.upper()} CLASS: {name}")
+                        matches.append((inferred_type, name, code_block.strip()))
+    return matches
+
+
 def generate_test_code(user_prompt, validations, url, browser="chrome", class_name="Test", validation_string=None, llm_java_code=None):
     os.makedirs("generated_code", exist_ok=True)
+    file_map = {}
 
-    # ✅ STEP 1: If LLM returned complete code, write it as-is
     if llm_java_code:
-        java_file = f"{class_name}Test.java"
-        output_path = f"generated_code/src/test/java/com/charitableimpact/{java_file}"
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, "w") as f:
-            f.write(llm_java_code)
-        return {java_file: llm_java_code}
+        try:
+            os.makedirs("generated_code/src/test/java/com/charitableimpact", exist_ok=True)
 
-    # ✅ STEP 2: If no LLM code provided, fall back to template-based generation
+            matches = extract_classes_from_llm_code(llm_java_code)
+
+            if not matches:
+                print("❌ No classes extracted from LLM code. First 500 chars of response:")
+                print(llm_java_code[:500])
+
+            for class_type, class_name_found, class_body in matches:
+                file_path = f"generated_code/src/test/java/com/charitableimpact/{class_name_found}.java"
+                clean_code = re.sub(r"[^\x20-\x7E\n\t]", "", class_body.strip())
+                clean_code = re.sub(r"^[-=]{3,}$", "", clean_code, flags=re.MULTILINE).strip()
+
+                is_test_class = class_type.strip().lower() == "test"
+                if not re.search(r"import\s+org\.openqa\.selenium", clean_code):
+                    if is_test_class:
+                        imports = (
+                            "import org.openqa.selenium.*;\n"
+                            "import org.openqa.selenium.chrome.*;\n"
+                            "import io.github.bonigarcia.wdm.WebDriverManager;\n"
+                            "import org.testng.*;\n"
+                            "import org.testng.annotations.*;\n\n"
+                        )
+                    else:
+                        imports = (
+                            "import org.openqa.selenium.*;\n"
+                            "import org.openqa.selenium.support.*;\n"
+                            "import org.openqa.selenium.support.FindBy;\n"
+                            "import org.openqa.selenium.support.PageFactory;\n\n"
+                        )
+                    clean_code = imports + clean_code
+
+                if not is_test_class:
+                    clean_code = convert_to_findby(clean_code)
+                    if "PageFactory.initElements" not in clean_code:
+                        clean_code = re.sub(
+                            rf'(public\s+{class_name_found}\s*\(.*?\)\s*\{{)',
+                            r'\1\n        PageFactory.initElements(driver, this);',
+                            clean_code
+                        )
+
+                clean_code = strip_duplicate_imports(clean_code)
+
+                with open(file_path, "w") as f:
+                    f.write(f"package com.charitableimpact;\n\n{clean_code}")
+
+                file_map[f"{class_name_found}.java"] = clean_code
+
+            return file_map
+
+        except Exception as e:
+            print(f"⚠️ Failed to write LLM code. Falling back to template. Error: {e}")
+
     files = {}
-
     page_template = load_template("page_template.java.j2")
     test_template = load_template("test_template.java.j2")
     pom_template = load_template("pom.xml.j2")
-
     include_text_validation = bool(validation_string)
 
     for v in validations:
@@ -64,11 +177,9 @@ def generate_test_code(user_prompt, validations, url, browser="chrome", class_na
         v["by"] = "xpath"
         v["selector"] = v["xpath"]
 
-    # Render the page object class
     page_code = page_template.render(elements=validations, class_name=class_name)
     files[f"{class_name}Page.java"] = page_code
 
-    # Render the test class
     test_code = test_template.render(
         class_name=class_name,
         page_class=f"{class_name}Page",
@@ -79,14 +190,10 @@ def generate_test_code(user_prompt, validations, url, browser="chrome", class_na
         include_text_validation=include_text_validation
     )
     files[f"{class_name}Test.java"] = test_code
-
-    # Render pom.xml
     files["pom.xml"] = pom_template.render()
 
-    # Write files to disk
     base_path = "generated_code/src/test/java/com/charitableimpact"
     os.makedirs(base_path, exist_ok=True)
-
     for name, content in files.items():
         output_path = (
             f"{base_path}/{name}" if name.endswith(".java") else f"generated_code/{name}"
@@ -104,7 +211,7 @@ def generate_multiple_tests(module_specs: list):
         class_name = mod.get("class_name", "Test")
         validation_string = mod.get("validation_string", None)
         browser = mod.get("browser", "chrome")
-        llm_code = mod.get("llm_java_code", None)
+        llm_code = mod.get("llm_code", None)
         generate_test_code(
             user_prompt=user_prompt,
             validations=validations,
@@ -114,50 +221,3 @@ def generate_multiple_tests(module_specs: list):
             validation_string=validation_string,
             llm_java_code=llm_code
         )
-
-def generate_multiple_tests_from_prompt(user_prompt, url, username=None, password=None, browser="chrome", log_callback=print):
-    tasks = split_prompt_into_tasks(user_prompt)
-    all_generated = []
-
-    for i, task in enumerate(tasks):
-        log_callback(f"⏳ Generating test {i+1}/{len(tasks)}: {task}")
-
-        context = retrieve_context(task)
-        full_prompt = (
-            f"{context}\n\n"
-            f"You are testing charitableimpact.com. "
-            f"Generate Java Selenium 4.2+ TestNG code using Page Object Model. "
-            f"If the task implies a new page or screen, create a new Page and Test class. "
-            f"Each test must be independent, follow proper functional flow, and avoid hardcoded driver paths.\n"
-            f"Task: {task}"
-        )
-
-        chat_history = [{"role": "user", "content": full_prompt}]
-        llm_code, llm_time = chat_with_llm(chat_history)
-
-        test_methods = re.findall(r'@Test\s+public void\s+(\w+)\s*\(\)\s*\{.*?\}', llm_code, re.DOTALL)
-
-        class_name = re.sub(r'[^a-zA-Z0-9]', '', task.title().replace(" ", "")) or f"Task{i+1}"
-
-        validations = suggest_validations_authenticated(url, username, password)
-        validation_string = "Success" if validations else None
-
-        file_map = generate_test_code(
-            user_prompt=task,
-            validations=validations,
-            url=url,
-            browser=browser,
-            class_name=class_name,
-            validation_string=validation_string,
-            llm_java_code=llm_code
-        )
-
-        log_callback(f"✅ Generated files: {', '.join(file_map.keys())}")
-
-        all_generated.append({
-            "class_name": class_name,
-            "test_methods": test_methods,
-            "llm_time": llm_time
-        })
-
-    return all_generated

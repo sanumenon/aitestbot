@@ -3,7 +3,7 @@ import streamlit as st
 from config import get_target_url, DEFAULT_BROWSER
 from llm_engine import chat_with_llm, set_llm_mode, initialize_local_model
 from memory_manager import MemoryManager
-from code_generator import generate_test_code, generate_multiple_tests, generate_multiple_tests_from_prompt
+from code_generator import generate_test_code, generate_multiple_tests
 from dom_scraper import suggest_validations, suggest_validations_authenticated
 from intent_cache import IntentCache
 from executor import execute_tests_live
@@ -295,29 +295,6 @@ def process_user_prompt(user_input: str):
 
         response, llm_response_time = chat_with_llm(st.session_state.chat_history)
         llm_code = response
-
-                # If multi-task prompt, call generate_multiple_tests_from_prompt
-        # if any(delim in user_input.lower() for delim in [" and ", " then ", ".", "\n"]):
-        #     st.info("🧩 Detected multi-step flow. Generating multiple test classes...")
-        #     username, password = None, None
-        #     if "@" in user_input and "/" in user_input:
-        #         creds = re.findall(r"[\w\.-]+@[\w\.-]+\.[a-zA-Z]+\s*/\s*[^\s]+", user_input)
-        #         if creds:
-        #             username, password = creds[0].split("/")
-        #             username = username.strip()
-        #             password = password.strip()
-
-        #     generated_classes = generate_multiple_tests_from_prompt(
-        #         user_prompt=user_input,
-        #         url=target_url,
-        #         username=username.strip() if 'username' in locals() else None,
-        #         password=password.strip() if 'password' in locals() else None,
-        #         browser=browser_choice,
-        #         log_callback=st.info  # ✅ Pass the logging callback to show progress in UI
-        #     )
-        #     st.success(f"✅ Generated {len(generated_classes)} test classes from multi-step prompt.")
-        #     st.session_state.generated_code_ready = True
-        #     return
         end_time = time.time()
 
         st.code(response, language="java" if "class" in response else "markdown")

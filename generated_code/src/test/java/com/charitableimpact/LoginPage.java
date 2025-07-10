@@ -14,8 +14,8 @@ public class LoginPage {
     @FindBy(id = "password")
     private WebElement passwordInput;
 
-    @FindBy(xpath = "//button[contains(text(),'Sign In')]")
-    private WebElement signInButton;
+    @FindBy(xpath = "//button[@type='submit']")
+    private WebElement loginButton;
 
     public LoginPage(WebDriver driver) {
         this.driver = driver;
@@ -30,7 +30,7 @@ public class LoginPage {
         passwordInput.sendKeys(password);
     }
 
-    public void clickSignInButton() {
-        signInButton.click();
+    public void clickLoginButton() {
+        loginButton.click();
     }
 }

@@ -23,7 +23,9 @@ def suggest_validations(url):
     driver = webdriver.Chrome(options=options)
     driver.get(url)
 
-    raw_elements = driver.find_elements(By.XPATH, "//input | //textarea | //select | //button")
+    raw_elements = driver.find_elements(By.XPATH, """//input | //textarea | //select | //button | //*[@role='button'] | //a[@href]""")
+
+
     validations = []
     seen_names = set()
 
@@ -33,7 +35,17 @@ def suggest_validations(url):
                 continue
 
             tag = el.tag_name
-            raw_name = el.get_attribute("name") or el.get_attribute("id") or el.get_attribute("placeholder") or f"element{i}"
+            raw_name = (
+                el.get_attribute("data-testid")
+                or el.get_attribute("data-cy")
+                or el.get_attribute("name")
+                or el.get_attribute("id")
+                or el.get_attribute("aria-label")
+                or el.get_attribute("placeholder")
+                or el.get_attribute("title")
+                or f"element{i}"
+            )
+
             safe_name = sanitize_name(raw_name)
 
             while safe_name in seen_names:
@@ -56,26 +68,48 @@ def suggest_validations(url):
                 return absoluteXPath(arguments[0]);
             """, el)
 
-            if tag in ["input", "textarea"]:
+            input_type = el.get_attribute("type") or ""
+            if tag == "textarea":
                 action = "enterText"
                 sample_text = "sample input"
-                element_type = "textarea" if tag == "textarea" else "textbox"
-            elif tag in ["button"]:
-                action = "click"
-                sample_text = ""
-                element_type = "button"
-            elif tag in ["select"]:
+                element_type = "textarea"
+            elif tag == "input":
+                if input_type == "checkbox":
+                    action = "click"
+                    sample_text = ""
+                    element_type = "checkbox"
+                elif input_type == "radio":
+                    action = "click"
+                    sample_text = ""
+                    element_type = "radiobutton"
+                elif input_type in ["submit", "button"]:
+                    action = "click"
+                    sample_text = ""
+                    element_type = "button"
+                else:
+                    action = "enterText"
+                    sample_text = "sample input"
+                    element_type = "textbox"
+            elif tag == "select":
                 action = "select"
                 sample_text = ""
                 element_type = "dropdown"
+            elif tag in ["button", "a", "div"] and (el.get_attribute("role") == "button" or tag == "button"):
+                action = "click"
+                sample_text = ""
+                element_type = "button"
             else:
                 action = "click"
                 sample_text = ""
                 element_type = "button"
 
+
+
+
             validations.append({
                 "name": safe_name,
-                "xpath": f"//*[@id='{id_attr}']" if id_attr else xpath,
+                "by": "css" if id_attr else "xpath",
+                "selector": f"#{id_attr}" if id_attr else xpath,
                 "action": action,
                 "sampleText": sample_text,
                 "type": element_type,

@@ -32,7 +32,7 @@ required_session_keys = {
     "last_loaded_model": "",
     "llm_choice": "local",
     "memory_exported": False,
-    "local_model_name": "google/gemma-2b"
+    "local_model_name": "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 }
 
 for key, default in required_session_keys.items():
@@ -63,32 +63,6 @@ def is_out_of_scope(prompt: str) -> bool:
     return not any(kw in prompt_lower for kw in keywords)
 
 
-# Prevent multiple initializations
-# if "initialized" not in st.session_state:
-#     st.session_state.initialized = True   
-
-#     st.set_page_config(page_title="AI Test Bot for Charitable Impact", layout="wide")
-#     st.title("🤖 AI Test Bot for Charitableimpact")
-#     st.write("Generate and run Selenium Java test cases with LLM + POM support")
-
-#     os.makedirs("cache", exist_ok=True)
-#     os.makedirs("rag_versions", exist_ok=True)
-
-
-#     if "chat_history" not in st.session_state:
-#         st.session_state.chat_history = []
-#     if "generated_intent" not in st.session_state:
-#         st.session_state.generated_intent = ""
-#     if "generated_code_ready" not in st.session_state:
-#         st.session_state.generated_code_ready = False
-#     # if "multi_module_specs" not in st.session_state:
-#     #     st.session_state.get("multi_module_specs", []) = []
-#     if "llm_response_time" not in st.session_state:
-#         st.session_state.llm_response_time = ""
-#     if "local_model_loaded_once" not in st.session_state:
-#         st.session_state.local_model_loaded_once = False
-#     if "last_loaded_model" not in st.session_state:
-#         st.session_state.last_loaded_model = ""
 
 # Sidebar rendering
 with st.sidebar:
@@ -102,13 +76,13 @@ with st.sidebar:
 
     if llm_choice == "local":
         if "local_model_name" not in st.session_state:
-            st.session_state.local_model_name = "google/gemma-2b"
+            st.session_state.local_model_name = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 
         st.selectbox("Local Model", [
-            "google/gemma-2b",
             "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
             "teknium/OpenHermes-2.5-Mistral-7B",
-            "mistralai/Mistral-7B-Instruct-v0.2"
+            "mistralai/Mistral-7B-Instruct-v0.2",
+            "google/gemma-2b",
         ], key="local_model_name")
 
     local_model_name = st.session_state.local_model_name  # ✅ pull it back
@@ -203,7 +177,7 @@ if st.session_state.get("llm_choice") and not st.session_state.get("_llm_set_onc
     if st.session_state["llm_choice"] == "openai":
         set_llm_mode("openai")
     elif st.session_state["llm_choice"] == "local":
-        default_model = st.session_state.get("last_loaded_model", "google/gemma-2b")
+        default_model = st.session_state.get("last_loaded_model", "TinyLlama/TinyLlama-1.1B-Chat-v1.0")
         if not st.session_state.get("local_model_loaded_once"):
             with st.spinner(f"🧠 Auto-loading default model: {default_model}"):
                 success = initialize_local_model(default_model)

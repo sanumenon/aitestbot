@@ -1,40 +1,38 @@
 package com.charitableimpact;
 
-import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import java.util.concurrent.TimeUnit;
 
 public class LoginTest {
     private WebDriver driver;
-    private String baseUrl = "https://my.charitableimpact.com";
-    private String email = "menon.sanu@gmail.com";
-    private String password = "Test123#";
+    private String baseUrl = "https://my.charitableimpact.com/users/login";
 
     @BeforeClass
-    public void setup() {
+    public void setUp() {
         WebDriverManager.chromedriver().setup();
         driver = new ChromeDriver();
         driver.manage().window().maximize();
+        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
         driver.get(baseUrl);
     }
 
     @Test
-    public void testLogin() {
+    public void loginTest() {
+        ExtentReportManager.createTest("Login Test");
         LoginPage loginPage = new LoginPage(driver);
-        loginPage.enterEmail(email);
-        loginPage.enterPassword(password);
-        loginPage.clickSignInButton();
-
-        // Add assertions or further steps after successful login if needed
+        loginPage.enterEmail("menon.sanu@gmail.com");
+        loginPage.enterPassword("Test123#");
+        loginPage.clickLoginButton();
+        // Add verification steps here
     }
 
     @AfterClass
     public void tearDown() {
-        if (driver != null) {
-            driver.quit();
-        }
+        driver.quit();
+        ExtentReportManager.flush();
     }
 }

@@ -135,20 +135,41 @@ def chat_with_llm(prompt_messages: list, temperature=0.7) -> tuple[str, float]:
     "- Only generate test automation code in **Java** using **Selenium 4.2 or higher**, **TestNG**, and **Maven**.\n"
     "- Follow the **Page Object Model (POM)** design pattern.\n"
     "- Use **WebDriverManager** for driver setup (❌ No hardcoded paths like `C:/.../chromedriver.exe`).\n"
+    "- ✅ Always include `import io.github.bonigarcia.wdm.WebDriverManager;` in the Test class.\n"
     "- Use Selenium 4+ syntax for waits, e.g., `new WebDriverWait(driver, Duration.ofSeconds(10))`, and always import `java.time.Duration`.\n"
+    "- ❌ Do not use deprecated timeout APIs like `TimeUnit.SECONDS` or `implicitlyWait(10, TimeUnit.SECONDS)`.\n"
+    "- ✅ Always use `Duration.ofSeconds(10)` for waits and timeouts, and import `java.time.Duration`.\n"
+
+
     "- Assume latest stable **Selenium 4.2+**, **TestNG**, and **Java 11+**.\n"
     "- ❌ Never use deprecated methods like `findElementBy...`.\n"
     "- ❌ Never reference Selenium IDE or other languages/frameworks.\n\n"
 
     "🔴 All test classes must include ExtentReports:\n"
-    "- Import `com.charitableimpact.config.ExtentReportManager;`\n"
-    "- Use `ExtentReportManager.createTest(\"TestName\")` to initiate logging.\n"
-    "- Log test steps and results using `test.log(Status.INFO, "...")`, etc.\n"
-    "- Call `ExtentReportManager.flush()` in `@AfterClass`.\n\n"
+    "- ✅ Always import the following in every Test class:\n"
+    "❌ Do NOT call ExtentReportManager.getExtent() — that method is not allowed \n"
+    "```java\n"
+    "import com.aventstack.extentreports.ExtentReports;\n"
+    "import com.aventstack.extentreports.ExtentTest;\n"
+    "import com.aventstack.extentreports.Status;\n"
+    "import com.charitableimpact.config.ExtentReportManager;\n"
+    "import io.github.bonigarcia.wdm.WebDriverManager;\n"
+    "```\n"
+    "- ✅ At the beginning of each test method, initialize logging:\n"
+    "```java\n"
+    "ExtentTest test = ExtentReportManager.createTest(\"TestName\");\n"
+    "```\n"
+    "- ✅ Log steps using:\n"
+    "```java\n"
+    "test.log(Status.INFO, \"Step description here\");\n"
+    "```\n"
+    "- ✅ In `@AfterClass`, call:\n"
+    "```java\n"
+    "ExtentReportManager.flush();\n"
+    "```\n"
+    "- 📄 Reports must be saved to: `generated_code/ExtentReport/ExtentReport.html`\n"
+    "- ❌ Do NOT skip any of the above steps. Assume all required classes and configs are available.\n\n"
 
-    "Reports must be saved to: `generated_code/ExtentReport/ExtentReport.html`.\n"
-
-    "Do not skip Extent Report logic. Assume required classes and configs are available.\n\n"
 
     "🧩 **POM Structure Enforcement:**\n"
     "✔️ Always generate **two separate classes** per module:\n"
@@ -191,8 +212,10 @@ def chat_with_llm(prompt_messages: list, temperature=0.7) -> tuple[str, float]:
     "📍 **Valid paths include (but not limited to):**\n"
     "- `/users/login`, `/dashboard`, `/groups/edit`, `/impact-account/...`, `/search?...`, `/give/...`, `/charities/...`, `/user/...`, `/campaigns/...`\n\n"
 
-    "If the prompt is off-topic or unrelated to charitableimpact.com, respond with:\n"
-    "'❌ I can only help with test case generation for the domain charitableimpact.com using Java + Selenium + TestNG + Maven.'\n"  
+    "If the prompt clearly has nothing to do with the charitableimpact.com domain or its functionality, respond with: \n"
+    "'❌ I can only help with test case generation for the domain charitableimpact.com using Java + Selenium + TestNG + Maven.'\n"
+    "Otherwise, follow all code requirements strictly and generate full Java + Selenium + TestNG test classes."
+  
     """
     if not any(m.get("role") == "system" and "You are a highly specialized AI" in m.get("content", "") for m in prompt_messages):
         prompt_messages.insert(0, {"role": "system", "content": restriction_prompt})

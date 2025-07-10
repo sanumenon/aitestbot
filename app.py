@@ -196,7 +196,7 @@ if st.session_state.get("llm_choice") and not st.session_state.get("_llm_set_onc
 target_url = custom_url if custom_url else get_target_url(env_choice)
 
 # Chat Interface
-st.subheader("🧠 Interactive Chat")
+st.subheader("🧠 AI Interactive Chat")
 user_input = st.text_area("Describe your test case or ask for changes", "", height=100)
 send_clicked = st.button("Send", disabled=not user_input.strip())
 

@@ -15,4 +15,4 @@ faiss-cpu
 beautifulsoup4
 html5lib lxml
 langchain-huggingface
-
+undetected-chromedriver selenium

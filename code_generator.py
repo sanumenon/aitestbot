@@ -222,7 +222,15 @@ def generate_test_code(user_prompt, validations, url, browser="chrome", class_na
     test_template = load_template("test_template.java.j2")
     pom_template = load_template("pom.xml.j2")
     include_text_validation = bool(validation_string)
-
+    # Inject scraped validations if none provided
+    if not validations and url:
+        try:
+            print(f"🌐 Scraping DOM for validations from: {url}")
+            validations = suggest_validations_authenticated(url)
+        except Exception as e:
+            print(f"⚠️ Failed to scrape DOM: {e}")
+            validations = []
+            
     for v in validations:
         label = v.get("label", "element")
         v["name"] = v.get("name") or sanitize_name(label)

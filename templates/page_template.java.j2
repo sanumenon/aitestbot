@@ -2,54 +2,58 @@ package com.charitableimpact;
 
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.Select;
+import org.openqa.selenium.support.PageFactory;
+import org.openqa.selenium.support.FindBy;
+import java.util.List;
 
 public class {{ class_name }}Page {
     WebDriver driver;
 
     public {{ class_name }}Page(WebDriver driver) {
         this.driver = driver;
+        PageFactory.initElements(driver, this);
     }
 
     {% for element in elements %}
-    By {{ element.name }}Locator = By.{{ element.by | default("xpath") }}("{{ element.selector }}");
+    @FindBy({{ 'id' if element.by == 'id' else 'name' if element.by == 'name' else 'css' if element.by == 'css' else 'xpath' }} = "{{ element.selector }}")
+    private WebElement {{ element.name }};
 
     public void interactWith{{ element.name|title|replace('_', '') }}() {
-        WebElement element = driver.findElement({{ element.name }}Locator);
-        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", element);
+        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", {{ element.name }});
 
         {% if element.is_dropdown %}
-        Select dropdown = new Select(element);
+        Select dropdown = new Select({{ element.name }});
         dropdown.selectByVisibleText("{{ element.value | default('Option 1') }}");
 
         {% elif element.is_textarea %}
-        element.clear();
-        element.sendKeys("{{ element.value | default('Sample multiline input') }}");
+        {{ element.name }}.clear();
+        {{ element.name }}.sendKeys("{{ element.value | default('Sample multiline input') }}");
 
         {% elif element.is_button %}
-        element.click();
+        {{ element.name }}.click();
 
         {% elif element.is_checkbox %}
-        boolean shouldCheck = {{ element.should_check | default(True) | string|lower }};
-        if (shouldCheck && !element.isSelected()) {
-            element.click();
-        } else if (!shouldCheck && element.isSelected()) {
-            element.click();
+        boolean shouldCheck = {{ element.should_check | default(True) | string | lower }};
+        if (shouldCheck && !{{ element.name }}.isSelected()) {
+            {{ element.name }}.click();
+        } else if (!shouldCheck && {{ element.name }}.isSelected()) {
+            {{ element.name }}.click();
         }
 
         {% elif element.is_radiobutton %}
-        element.click();
+        {{ element.name }}.click();
 
         {% elif element.is_fileupload %}
-        element.sendKeys("{{ element.file_path | default('/path/to/file.png') }}");
+        {{ element.name }}.sendKeys("{{ element.file_path | default('/path/to/file.png') }}");
 
         {% else %}
-        element.clear();
-        element.sendKeys("{{ element.value | default('Test input') }}");
+        {{ element.name }}.clear();
+        {{ element.name }}.sendKeys("{{ element.value | default('Test input') }}");
         {% endif %}
     }
 
-    public By get{{ element.name|title|replace('_', '') }}Locator() {
-        return {{ element.name }}Locator;
+    public WebElement get{{ element.name|title|replace('_', '') }}() {
+        return {{ element.name }};
     }
     {% endfor %}
 }

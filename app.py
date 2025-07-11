@@ -9,6 +9,7 @@ from intent_cache import IntentCache
 from executor import execute_tests_live
 from tinydb import TinyDB
 from doc_ingestor import ingest_doc
+from rag_search import retrieve_context
 import os
 import json
 from datetime import datetime
@@ -54,17 +55,7 @@ if not st.session_state.initialized:
 memory = MemoryManager()
 cache = IntentCache()
 
-def is_out_of_scope(prompt: str) -> bool:
-    keywords = [
-        "charitableimpact", "selenium", "testng", "java", "automation", "pom", "maven",
-        "qa test", "login page", "signup flow", "browser automation", "test case"
-    ]
-    prompt_lower = prompt.lower()
-    return not any(kw in prompt_lower for kw in keywords)
-
-
-
-# Sidebar rendering
+# Sidebar logic for LLM mode, browser, memory management, RAG ingestion, and cache clearing
 with st.sidebar:
     st.header("Test Setup")
     env_choice = st.selectbox("Environment", ["production", "qa", "stage"], index=0)
@@ -75,9 +66,6 @@ with st.sidebar:
     llm_choice = st.radio("LLM Mode", ["local", "openai"], index=0)
 
     if llm_choice == "local":
-        if "local_model_name" not in st.session_state:
-            st.session_state.local_model_name = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-
         st.selectbox("Local Model", [
             "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
             "teknium/OpenHermes-2.5-Mistral-7B",
@@ -85,26 +73,22 @@ with st.sidebar:
             "google/gemma-2b",
         ], key="local_model_name")
 
-    local_model_name = st.session_state.local_model_name  # ✅ pull it back
+    local_model_name = st.session_state.local_model_name
 
-    if not local_model_name.strip():
-        st.error("⚠️ No model name selected. Please choose a valid local model.")
-    elif (not st.session_state.local_model_loaded_once) or (st.session_state.last_loaded_model != local_model_name):
+    if (not st.session_state.local_model_loaded_once) or (st.session_state.last_loaded_model != local_model_name):
         with st.spinner(f"🧠 Loading model: {local_model_name}... please wait"):
             success = initialize_local_model(local_model_name)
         if success:
-            st.session_state["last_loaded_model"] = local_model_name
-            st.session_state["local_model_loaded_once"] = True
+            st.session_state.last_loaded_model = local_model_name
+            st.session_state.local_model_loaded_once = True
             st.toast(f"✅ Loaded model: {local_model_name}", icon="🧠")
         else:
             st.error(f"❌ Failed to load model: {local_model_name}")
     else:
         st.info(f"✅ Model already loaded: {local_model_name}")
 
-
-    # Only set LLM mode if changed
-    if st.session_state.get("llm_choice") != llm_choice:
-        st.session_state["llm_choice"] = llm_choice
+    if st.session_state.llm_choice != llm_choice:
+        st.session_state.llm_choice = llm_choice
         if llm_choice == "openai":
             set_llm_mode(llm_choice)
 
@@ -118,6 +102,7 @@ with st.sidebar:
             st.session_state.memory_exported = True
         else:
             st.warning("No memory data found to export.")
+
     if st.button("🧽 Clear Memory After Export"):
         if not st.session_state.get("memory_exported", False):
             st.error("Please export memory first before clearing it.")
@@ -136,9 +121,8 @@ with st.sidebar:
             for key, default in required_session_keys.items():
                 if key not in st.session_state:
                     st.session_state[key] = default
-
-            st.session_state["last_loaded_model"] = last_model
-            st.session_state["local_model_loaded_once"] = model_loaded_flag
+            st.session_state.last_loaded_model = last_model
+            st.session_state.local_model_loaded_once = model_loaded_flag
             st.success("Memory cleared! Chat and test prompt history reset.")
 
     st.subheader("📄 RAG Setup: Help Docs")
@@ -148,7 +132,6 @@ with st.sidebar:
     if st.button("📅 Ingest Help Docs"):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         index_path = f"rag_versions/rag_{timestamp}"
-
         if uploaded_file:
             with open("cache/uploaded_help.pdf", "wb") as f:
                 f.write(uploaded_file.getbuffer())
@@ -169,175 +152,75 @@ with st.sidebar:
         model_loaded_flag = st.session_state.get("local_model_loaded_once")
         msg = cache.clear_cache()
         st.success(msg)
-        st.session_state["last_loaded_model"] = last_model
-        st.session_state["local_model_loaded_once"] = model_loaded_flag
+        st.session_state.last_loaded_model = last_model
+        st.session_state.local_model_loaded_once = model_loaded_flag
 
-# Final fallback: Ensure LLM mode and default model applied once
+# Final fallback: ensure LLM mode applied if not done earlier
 if st.session_state.get("llm_choice") and not st.session_state.get("_llm_set_once"):
-    if st.session_state["llm_choice"] == "openai":
+    if st.session_state.llm_choice == "openai":
         set_llm_mode("openai")
-    elif st.session_state["llm_choice"] == "local":
+    elif st.session_state.llm_choice == "local":
         default_model = st.session_state.get("last_loaded_model", "TinyLlama/TinyLlama-1.1B-Chat-v1.0")
         if not st.session_state.get("local_model_loaded_once"):
             with st.spinner(f"🧠 Auto-loading default model: {default_model}"):
                 success = initialize_local_model(default_model)
             if success:
-                st.session_state["last_loaded_model"] = default_model
-                st.session_state["local_model_loaded_once"] = True
+                st.session_state.last_loaded_model = default_model
+                st.session_state.local_model_loaded_once = True
                 st.toast(f"✅ Loaded model: {default_model}", icon="🧠")
             else:
                 st.error(f"❌ Failed to load model: {default_model}")
     st.session_state["_llm_set_once"] = True
 
+# ✅ Prompt input and LLM processing
+st.subheader("🗣️ Ask a Test Question or Feature Prompt")
+user_input = st.text_area("💬 Your prompt", key="user_prompt_input")
+send_clicked = st.button("📨 Send Prompt")
 
-
-
-# Get target URL
-target_url = custom_url if custom_url else get_target_url(env_choice)
-
-# Chat Interface
-st.subheader("🧠 AI Interactive Chat")
-user_input = st.text_area("Describe your test case or ask for changes", "", height=100)
-send_clicked = st.button("Send", disabled=not user_input.strip())
-
-def format_elapsed_time(start_time, end_time):
-    elapsed = end_time - start_time
-    hours = int(elapsed // 3600)
-    minutes = int((elapsed % 3600) // 60)
-    seconds = int(elapsed % 60)
-    milliseconds = int((elapsed - int(elapsed)) * 1000)
-    formatted_time = f"{hours:02}:{minutes:02}:{seconds:02}:{milliseconds:03}"
-    return formatted_time
-
-def format_llm_elapsed_time(elapsed_seconds: float) -> str:
-    hours = int(elapsed_seconds // 3600)
-    minutes = int((elapsed_seconds % 3600) // 60)
-    seconds = int(elapsed_seconds % 60)
-    milliseconds = int((elapsed_seconds - int(elapsed_seconds)) * 1000)
-    return f"{hours:02}:{minutes:02}:{seconds:02}:{milliseconds:03}"
-
-# ==== MAIN CHAT SUBMISSION BLOCK ====
-def process_user_prompt(user_input: str):
-    cached_code = cache.get_cached(user_input)
-    if cached_code:
-        st.success("♻️ Using previously generated test code from cache.")
-        st.code(cached_code, language="java")
-
-        os.makedirs("generated_code/src/test/java/com/charitableimpact", exist_ok=True)
-        java_file_path = os.path.join("generated_code/src/test/java/com/charitableimpact", "CachedTest.java")
-        with open(java_file_path, "w") as f:
-            f.write(cached_code)
-
-        st.session_state.generated_code_ready = True
-        st.info("✅ Cached code written to `generated_code/src/test/java/CachedTest.java` and ready to run.")
-        short_hash = hashlib.sha1((user_input).encode()).hexdigest()[:5]
-        class_name = f"CachedTest_{short_hash}"
-        if class_name not in [mod['class_name'] for mod in st.session_state.get("multi_module_specs", [])]:
-            st.session_state.get("multi_module_specs", []).append({
-                "user_prompt": user_input,
-                "validations": [],
-                "url": target_url,
-                "class_name": class_name,
-                "validation_string": None,
-                "browser": browser_choice
-            })
-        return
-
-    with st.spinner("💬 Generating response from LLM..."):
-        start_time = time.time()
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        if is_out_of_scope(user_input):
-            response = "❌ I can only help with test case generation for charitableimpact.com using Java + Selenium + TestNG + Maven."
-            st.markdown("#### 🤖 LLM Response")
-            st.code(response, language="markdown")
-            st.session_state.chat_history.append({"role": "assistant", "content": response, "timestamp": timestamp})
-            memory.save_interaction(user_input, response)
-            cache.store(user_input, response)
-            return
-
-        st.session_state.chat_history.append({"role": "user", "content": user_input, "timestamp": timestamp})
-
-        if "@" in user_input and "/" in user_input:
-            enriched_prompt = (
-                f"Using the credentials and default URL or target URL provided, login to the app and continue test case steps.\n"
-                f"Credentials are likely included in the user message. Target URL: {target_url}\n"
-                f"Generate proper Selenium+TestNG test code based on this instruction."
-            )
-            st.session_state.chat_history.append({"role": "system", "content": enriched_prompt})
-        st.info(f"🤖 LLM Mode in Use: {llm_choice}")
-
-        response, llm_response_time = chat_with_llm(st.session_state.chat_history)
-        llm_code = response
-        end_time = time.time()
-
-        st.code(response, language="java" if "class" in response else "markdown")
-        st.markdown(f"🔍 Response generated by: `{llm_choice}` model")
-
-        formatted_time = format_llm_elapsed_time(llm_response_time)
-        st.metric(label="🧠 LLM Response Time", value=formatted_time)
-        end_time = time.time()
-
-        st.session_state.chat_history.append({"role": "assistant", "content": response, "timestamp": timestamp})
-        st.markdown("#### 🤖 LLM Response")
-        st.code(response, language="java" if "class" in response else "markdown")
-
-        memory.save_interaction(user_input, response)
-        cache.store(user_input, response)
-
-        def extract_multiple_modules_from_prompt(prompt):
-            page_names = re.findall(r"\b(\w+)\s+page", prompt, re.IGNORECASE)
-            return [name.capitalize() for name in page_names] or ["Test"]
-
-        def get_validation_string(validations):
-            for key in ["label", "text", "name", "value"]:
-                if validations and key in validations[0]:
-                    return validations[0][key]
-            return None
-
-        page_names = extract_multiple_modules_from_prompt(user_input)
-        stored_classes = []
-
-        for name in page_names:
-            validation_url = target_url
-            if "@" in user_input and "/" in user_input:
-                creds = re.findall(r"[\w\.-]+@[\w\.-]+\.[a-zA-Z]+\s*/\s*[^\s]+", user_input)
-                if creds:
-                    username, password = creds[0].split("/")
-                    dom_validations = suggest_validations_authenticated(validation_url, username.strip(), password.strip())
-                else:
-                    dom_validations = suggest_validations(validation_url)
-            else:
-                dom_validations = suggest_validations(validation_url)
-
-            validation_string = get_validation_string(dom_validations)
-            short_hash = hashlib.sha1((user_input + name).encode()).hexdigest()[:5]
-            existing_names = [m["class_name"] for m in st.session_state.get("multi_module_specs", [])]
-            unique_class = name if name not in existing_names else f"{name}_{short_hash}"
-
-            st.session_state.get("multi_module_specs", []).append({
-                "user_prompt": user_input,
-                "validations": dom_validations,
-                "url": validation_url,
-                "class_name": unique_class,
-                "validation_string": validation_string,
-                "browser": browser_choice,
-                "llm_code": llm_code
-            })
-
-            stored_classes.append(unique_class)
-
-        st.balloons()
-        st.success(f"✅ Stored modules: {', '.join(stored_classes)} (ready for generation)")
-
-# And now the call:
 if send_clicked and user_input.strip():
     click_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     st.info(f"📩 **Send clicked at:** {click_time}")
+    def process_user_prompt(prompt):
+        st.info("⏳ Processing your prompt with LLM...")
+        start = time.time()
+        messages = [{"role": "user", "content": prompt}]
+        response, elapsed = chat_with_llm(messages)
+        st.session_state.llm_response_time = f"{elapsed} sec"
+        st.success(f"✅ LLM responded in {elapsed} sec")
+        with st.expander("🧠 LLM Response", expanded=True):
+            st.code(response, language="java")
+        st.session_state.generated_code_ready = True
+
+        # ✅ Append to multi_module_specs list for "Generate All"
+        module_hash = hashlib.md5(prompt.encode()).hexdigest()[:6]
+        st.session_state.multi_module_specs.append({
+            "user_prompt": prompt,
+            "url": custom_url or get_target_url(env_choice),
+            "browser": browser_choice,
+            "class_name": f"Test{module_hash}",
+            "llm_code": response
+        })
+
     process_user_prompt(user_input)
     click_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     st.info(f"📩 **Response received at:** {click_time}")
 
+if send_clicked and user_input.strip():
+    click_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    st.info(f"📩 **Send clicked at:** {click_time}")
+    def process_user_prompt(prompt):
+        st.info("⏳ Processing your prompt with LLM...")
+        start = time.time()
+        messages = [{"role": "user", "content": prompt}]
+        response, elapsed = chat_with_llm(messages)
+        st.session_state.llm_response_time = f"{elapsed} sec"
+        st.success(f"✅ LLM responded in {elapsed} sec")
+        with st.expander("🧠 LLM Response", expanded=True):
+            st.code(response, language="java")
+        st.session_state.generated_code_ready = True
+    process_user_prompt(user_input)
+    click_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    st.info(f"📩 **Response received at:** {click_time}")
 # Show queued modules
 if st.session_state.get("multi_module_specs"):
     st.markdown("### 🧾 Queued Modules:")

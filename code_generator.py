@@ -8,6 +8,78 @@ import re
 
 JAVA_RESERVED_KEYWORDS = {...}  # same as before
 
+import re
+
+TEST_CLASS_IMPORTS = """
+import org.openqa.selenium.*;
+import org.openqa.selenium.chrome.*;
+import io.github.bonigarcia.wdm.WebDriverManager;
+import org.testng.*;
+import org.testng.annotations.*;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import org.testng.Assert;
+import org.testng.asserts.SoftAssert;
+import com.aventstack.extentreports.*;
+import com.charitableimpact.config.ExtentReportManager;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.By;
+import java.time.Duration;
+"""
+
+PAGE_CLASS_IMPORTS = """
+import org.openqa.selenium.*;
+import org.openqa.selenium.support.*;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.PageFactory;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.By;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.support.ui.Select;
+import org.openqa.selenium.interactions.Actions;
+import java.time.Duration;
+"""
+def get_required_imports(is_test_class: bool) -> str:
+    return TEST_CLASS_IMPORTS if is_test_class else PAGE_CLASS_IMPORTS
+
+
+def fix_generated_code_errors(code: str) -> str:
+    # 🔧 Replace forbidden ExtentReportManager.getExtent() calls
+    code = re.sub(
+        r'ExtentReportManager\.getExtent\s*\(\s*\)',
+        'ExtentReportManager.createTest("TestName")',
+        code
+    )
+
+    # ✅ Ensure required WebDriverManager import is present
+    if 'WebDriverManager.' in code and 'io.github.bonigarcia.wdm.WebDriverManager' not in code:
+        code = 'import io.github.bonigarcia.wdm.WebDriverManager;\n' + code
+
+    # ✅ Ensure required ExtentReport imports if ExtentTest or Status used
+    if 'ExtentTest' in code or 'Status.' in code:
+        required_imports = [
+            'import com.aventstack.extentreports.ExtentReports;',
+            'import com.aventstack.extentreports.ExtentTest;',
+            'import com.aventstack.extentreports.Status;',
+            'import com.charitableimpact.config.ExtentReportManager;',
+        ]
+        for imp in reversed(required_imports):
+            if imp not in code:
+                code = imp + "\n" + code
+
+    return code
+
+
 def split_prompt_into_tasks(prompt: str) -> list:
     delimiters = [' and ', ' then ', '\n', '.', ',']
     for d in delimiters:
@@ -115,91 +187,12 @@ def generate_test_code(user_prompt, validations, url, browser="chrome", class_na
                 clean_code = re.sub(r"^[-=]{3,}$", "", clean_code, flags=re.MULTILINE).strip()
 
                 is_test_class = class_type.strip().lower() == "test"
-                if not re.search(r"import\s+org\.openqa\.selenium", clean_code):
-                    if is_test_class:
-                        imports = (
-                            "import org.openqa.selenium.*;\n"
-                            "import org.openqa.selenium.chrome.*;\n"
-                            "import io.github.bonigarcia.wdm.WebDriverManager;\n"
-                            "import org.testng.*;\n"
-                            "import org.testng.annotations.*;\n"
-                            "import org.openqa.selenium.WebDriver;\n"
-                            "import org.openqa.selenium.chrome.ChromeDriver;\n"
-                            "import org.openqa.selenium.support.ui.ExpectedConditions;\n"
-                            "import org.openqa.selenium.support.ui.WebDriverWait;\n"
-                            "import org.testng.Assert;\n"
-                            "import org.testng.annotations.AfterClass;\n"
-                            "import org.testng.annotations.BeforeClass;\n"
-                            "import org.testng.annotations.Test;\n"
-                            "import io.github.bonigarcia.wdm.WebDriverManager;\n"
-                            "import org.testng.asserts.SoftAssert;\n"
-                            "import com.aventstack.extentreports.*;\n"
-                            "import com.charitableimpact.config.ExtentReportManager;\n"
-                            "import java.io.File;\n"
-                            "import java.io.IOException;\n"
-                            "import java.nio.file.Files;\n"
-                            "import java.nio.file.StandardCopyOption;\n"
-                            "import org.openqa.selenium.OutputType;\n"
-                            "import org.openqa.selenium.TakesScreenshot;\n"
-                            "import org.openqa.selenium.JavascriptExecutor;\n" 
-                            "import org.openqa.selenium.By;\n"
-                            "import org.openqa.selenium.support.ui.ExpectedConditions;\n"
-                            "import org.openqa.selenium.support.ui.WebDriverWait;\n"
-                            "import org.openqa.selenium.chrome.ChromeDriver;\n"
-                            "import org.openqa.selenium.chrome.ChromeOptions;\n"
-                            "import org.openqa.selenium.firefox.FirefoxDriver;\n"
-                            "import org.openqa.selenium.edge.EdgeDriver;\n"
-                            "import org.openqa.selenium.ie.InternetExplorerDriver;\n"
-                            "import org.openqa.selenium.safari.SafariDriver;\n"
-                            "import org.openqa.selenium.support.ui.Select;\n"
-                            "import org.openqa.selenium.interactions.Actions;\n"
-                            "import org.openqa.selenium.JavascriptExecutor;\n"
-                            "import org.openqa.selenium.TimeoutException;\n"
-                            "import org.openqa.selenium.StaleElementReferenceException;\n"
-                            "import org.openqa.selenium.NoSuchElementException;\n"
-                            "import org.openqa.selenium.ElementNotInteractableException;\n"
-                            "import org.openqa.selenium.InvalidElementStateException;\n"
-                            "import org.openqa.selenium.WebDriverException;\n"
-                            "import org.openqa.selenium.UnhandledAlertException;\n"
-                            "import org.openqa.selenium.Alert;\n"
-                            "import org.openqa.selenium.Cookie;\n"
-                            "import org.openqa.selenium.Dimension;\n"
-                            "import org.openqa.selenium.Point;\n"
-                            "import java.time.Duration;\n\n"                          
-                        )
-                    else:
-                        imports = (
-                            "import org.openqa.selenium.*;\n"
-                            "import org.openqa.selenium.support.*;\n"
-                            "import org.openqa.selenium.support.FindBy;\n"
-                            "import org.openqa.selenium.support.PageFactory;\n"
-                            "import org.openqa.selenium.WebDriver;\n"
-                            "import org.openqa.selenium.WebElement;\n"
-                            "import org.openqa.selenium.By;\n"
-                            "import org.openqa.selenium.support.ui.ExpectedConditions;\n"
-                            "import org.openqa.selenium.support.ui.WebDriverWait;\n"
-                            "import org.openqa.selenium.chrome.ChromeDriver;\n"
-                            "import org.openqa.selenium.chrome.ChromeOptions;\n"
-                            "import org.openqa.selenium.firefox.FirefoxDriver;\n"
-                            "import org.openqa.selenium.edge.EdgeDriver;\n"
-                            "import org.openqa.selenium.ie.InternetExplorerDriver;\n"
-                            "import org.openqa.selenium.safari.SafariDriver;\n"
-                            "import org.openqa.selenium.support.ui.Select;\n"
-                            "import org.openqa.selenium.interactions.Actions;\n"
-                            "import org.openqa.selenium.JavascriptExecutor;\n"
-                            "import org.openqa.selenium.TimeoutException;\n"
-                            "import org.openqa.selenium.StaleElementReferenceException;\n"
-                            "import org.openqa.selenium.NoSuchElementException;\n"
-                            "import org.openqa.selenium.ElementNotInteractableException;\n"
-                            "import org.openqa.selenium.InvalidElementStateException;\n"
-                            "import org.openqa.selenium.WebDriverException;\n"
-                            "import org.openqa.selenium.UnhandledAlertException;\n"
-                            "import org.openqa.selenium.Alert;\n"
-                            "import org.openqa.selenium.Cookie;\n"
-                            "import org.openqa.selenium.Dimension;\n"
-                            "import org.openqa.selenium.Point;\n\n"       
-                        )
-                    clean_code = imports + clean_code
+                required_imports = get_required_imports(is_test_class).strip().splitlines()
+                existing_imports = set(re.findall(r'^import\s+.*?;', clean_code, re.MULTILINE))
+                new_imports = [imp for imp in required_imports if imp not in existing_imports]
+                if new_imports:
+                    clean_code = "\n".join(new_imports) + "\n" + clean_code
+
 
                 if not is_test_class:
                     clean_code = convert_to_findby(clean_code)
@@ -213,9 +206,11 @@ def generate_test_code(user_prompt, validations, url, browser="chrome", class_na
                 clean_code = strip_duplicate_imports(clean_code)
 
                 with open(file_path, "w") as f:
-                    f.write(f"package com.charitableimpact;\n\n{clean_code}")
+                    fixed_code = fix_generated_code_errors(f"package com.charitableimpact;\n\n{clean_code}")
+                    f.write(fixed_code)
 
-                file_map[f"{class_name_found}.java"] = clean_code
+
+                file_map[f"{class_name_found}.java"] = fixed_code
 
             return file_map
 

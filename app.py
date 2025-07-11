@@ -181,25 +181,54 @@ if send_clicked and user_input.strip():
     click_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     st.info(f"📩 **Send clicked at:** {click_time}")
     def process_user_prompt(prompt):
-        st.info("⏳ Processing your prompt with LLM...")
+        st.info("⏳ Processing your prompt with LLM and DOM validation...")
         start = time.time()
-        messages = [{"role": "user", "content": prompt}]
+
+        url = custom_url or get_target_url(env_choice)
+
+        try:
+            # 🔐 If login details are available, use suggest_validations_authenticated
+            # Replace with actual logic if you have login fields
+            dom_elements = suggest_validations(url)  # or suggest_validations_authenticated(url, username, password)
+        except Exception as e:
+            st.warning(f"⚠️ DOM validation failed: {e}")
+            dom_elements = []
+
+        # Prepare DOM context to guide the LLM
+        dom_context = ""
+        if dom_elements:
+            dom_context = "\n".join([
+                f"{el['name']} → {el['by']}={el['selector']}" for el in dom_elements
+            ])
+            st.info("✅ DOM elements extracted and injected into the LLM prompt.")
+
+        # Compose LLM prompt with DOM context
+        messages = []
+        if dom_context:
+            messages.append({"role": "system", "content": "Use only the following verified page elements when generating locators or selectors."})
+            messages.append({"role": "system", "content": dom_context})
+
+        messages.append({"role": "user", "content": prompt})
+
         response, elapsed = chat_with_llm(messages)
         st.session_state.llm_response_time = f"{elapsed} sec"
         st.success(f"✅ LLM responded in {elapsed} sec")
+
         with st.expander("🧠 LLM Response", expanded=True):
             st.code(response, language="java")
+
         st.session_state.generated_code_ready = True
 
         # ✅ Append to multi_module_specs list for "Generate All"
         module_hash = hashlib.md5(prompt.encode()).hexdigest()[:6]
         st.session_state.multi_module_specs.append({
             "user_prompt": prompt,
-            "url": custom_url or get_target_url(env_choice),
+            "url": url,
             "browser": browser_choice,
             "class_name": f"Test{module_hash}",
             "llm_code": response
         })
+
 
     process_user_prompt(user_input)
     click_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -220,6 +249,7 @@ if send_clicked and user_input.strip():
         st.session_state.generated_code_ready = True
     process_user_prompt(user_input)
     click_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    st.balloons()
     st.info(f"📩 **Response received at:** {click_time}")
 # Show queued modules
 if st.session_state.get("multi_module_specs"):

@@ -210,7 +210,15 @@ if send_clicked and user_input.strip():
 
         messages.append({"role": "user", "content": prompt})
 
-        response, elapsed = chat_with_llm(messages)
+        cached_code = cache.get_cached(prompt)
+        if cached_code:
+            st.success("✅ Retrieved code from intent cache (LLM not called).")
+            response = cached_code
+            elapsed = "0.0"
+        else:
+            response, elapsed = chat_with_llm(messages)
+            cache.store(prompt, response)
+
         st.session_state.llm_response_time = f"{elapsed} sec"
         st.success(f"✅ LLM responded in {elapsed} sec")
 

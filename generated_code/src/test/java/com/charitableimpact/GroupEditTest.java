@@ -28,31 +28,38 @@ import com.aventstack.extentreports.Status;
 import com.charitableimpact.config.ExtentReportManager;
 import io.github.bonigarcia.wdm.WebDriverManager;
 
-public class LoginTest {
+public class GroupEditTest {
     private WebDriver driver;
     ExtentTest test;
 
     @BeforeClass
     public void setUp() {
         ExtentReports extent = ExtentReportManager.getExtent();
-        test = ExtentReportManager.createTest("Login Test");
+        test = ExtentReportManager.createTest("Group Edit Test");
 
         WebDriverManager.chromedriver().setup();
         driver = new ChromeDriver();
         driver.manage().window().maximize();
         driver.get("https://my.charitableimpact.com/users/login");
+
+        // Login before navigating to group edit page
+        LoginPage loginPage = new LoginPage(driver);
+        loginPage.enterEmail("menon.sanu@gmail.com");
+        loginPage.enterPassword("Test123#");
+        loginPage.clickLoginButton();
     }
 
     @Test
-    public void testLogin() {
-        LoginPage loginPage = new LoginPage(driver);
+    public void testEditGroupName() {
+        driver.get("https://my.charitableimpact.com/groups/test-group-by-sanu-updated-by-nandu/edit");
 
-        test.log(Status.INFO, "Entering login credentials");
-        loginPage.enterEmail("menon.sanu@gmail.com");
-        loginPage.enterPassword("Test123#");
+        GroupEditPage groupEditPage = new GroupEditPage(driver);
 
-        test.log(Status.INFO, "Clicking on Login button");
-        loginPage.clickLoginButton();
+        test.log(Status.INFO, "Editing group name to Cheehoo");
+        groupEditPage.editGroupName("Cheehoo");
+
+        test.log(Status.INFO, "Clicking on Save button");
+        groupEditPage.clickSaveButton();
 
         // Add assertions or further steps as needed
     }

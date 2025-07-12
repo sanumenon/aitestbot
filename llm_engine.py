@@ -206,10 +206,10 @@ def chat_with_llm(prompt_messages: list, temperature=0.7) -> tuple[str, float]:
     print(f"🔍 chat_with_llm called with mode: {llm_mode}")
 
     # Inject restriction prompt only if not already present
-    # Always insert restriction prompt at the top
-    prompt_messages = [{"role": "system", "content": RESTRICTION_PROMPT}] + [
-    m for m in prompt_messages if m["role"] != "system"]
-
+    # ✅ Inject restriction prompt only if not already included
+    if not any(RESTRICTION_PROMPT.strip() in m["content"] for m in prompt_messages if m["role"] == "system"):
+        prompt_messages = [{"role": "system", "content": RESTRICTION_PROMPT}] + [
+            m for m in prompt_messages if m["role"] != "system"]
 
     # Process based on LLM mode
     if llm_mode == "local" and local_model and local_chatbot_pipeline:

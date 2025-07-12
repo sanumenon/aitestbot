@@ -56,10 +56,11 @@ def get_required_imports(is_test_class: bool) -> str:
 def fix_generated_code_errors(code: str) -> str:
     # 🔧 Replace forbidden ExtentReportManager.getExtent() calls
     code = re.sub(
-        r'ExtentReportManager\.getExtent\s*\(\s*\)',
-        'ExtentReportManager.createTest("TestName")',
-        code
-    )
+    r'ExtentReportManager\.getExtent\s*\(\s*\)\.createTest\s*\(\s*"([^"]+)"\s*\)',
+    r'ExtentReportManager.createTest("\1")',
+    code
+)
+
 
     # ✅ Ensure required WebDriverManager import is present
     if 'WebDriverManager.' in code and 'io.github.bonigarcia.wdm.WebDriverManager' not in code:
@@ -206,7 +207,8 @@ def generate_test_code(user_prompt, validations, url, browser="chrome", class_na
                 clean_code = strip_duplicate_imports(clean_code)
 
                 with open(file_path, "w") as f:
-                    fixed_code = fix_generated_code_errors(f"package com.charitableimpact;\n\n{clean_code}")
+                    clean_code = fix_generated_code_errors(clean_code)
+                    fixed_code = f"package com.charitableimpact;\n\n{clean_code}"
                     f.write(fixed_code)
 
 

@@ -8,11 +8,16 @@
     <classes>
       <class name="com.charitableimpact.LoginTest">
         <methods>
+          <include name="testLogin"/>
           <include name="setUp"/>
-          <include name="tearDown"/>
-          <include name="loginTest"/>
         </methods>
       </class> <!-- com.charitableimpact.LoginTest -->
+      <class name="com.charitableimpact.GroupEditTest">
+        <methods>
+          <include name="testEditGroupName"/>
+          <include name="setUp"/>
+        </methods>
+      </class> <!-- com.charitableimpact.GroupEditTest -->
     </classes>
   </test> <!-- All Tests(failed) -->
 </suite> <!-- Failed suite [Test Suite] -->

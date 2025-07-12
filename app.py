@@ -55,6 +55,23 @@ if not st.session_state.initialized:
 memory = MemoryManager()
 cache = IntentCache()
 
+def clear_session_memory(full: bool = False):
+    """Clear chat history or full memory depending on the flag."""
+    base_keys = ["chat_history"]
+    full_keys = base_keys + [
+        "generated_intent",
+        "generated_code_ready",
+        "multi_module_specs",
+        "llm_response_time",
+        "memory_exported"
+    ]
+
+    keys_to_clear = full_keys if full else base_keys
+
+    for key in keys_to_clear:
+        st.session_state.pop(key, None)
+
+
 # Sidebar logic for LLM mode, browser, memory management, RAG ingestion, and cache clearing
 with st.sidebar:
     st.header("Test Setup")
@@ -107,23 +124,18 @@ with st.sidebar:
         if not st.session_state.get("memory_exported", False):
             st.error("Please export memory first before clearing it.")
         else:
-            last_model = st.session_state.get("last_loaded_model")
-            model_loaded_flag = st.session_state.get("local_model_loaded_once")
             if os.path.exists("cache/memory.json"):
                 db = TinyDB("cache/memory.json")
                 db.truncate()
-            for key in [
-                "chat_history", "generated_intent", "generated_code_ready",
-                "multi_module_specs", "llm_response_time", "memory_exported"
-            ]:
-                if key in st.session_state:
-                    del st.session_state[key]
-            for key, default in required_session_keys.items():
-                if key not in st.session_state:
-                    st.session_state[key] = default
-            st.session_state.last_loaded_model = last_model
-            st.session_state.local_model_loaded_once = model_loaded_flag
-            st.success("Memory cleared! Chat and test prompt history reset.")
+
+            clear_session_memory(full=True)
+
+            # Restore model state
+            st.session_state.last_loaded_model = st.session_state.get("last_loaded_model")
+            st.session_state.local_model_loaded_once = st.session_state.get("local_model_loaded_once")
+
+            st.success("✅ Full memory cleared! Chat and test history reset.")
+
 
     st.subheader("📄 RAG Setup: Help Docs")
     uploaded_file = st.file_uploader("Upload Help PDF", type="pdf")
@@ -245,17 +257,31 @@ if send_clicked and user_input.strip():
 if send_clicked and user_input.strip():
     click_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     st.info(f"📩 **Send clicked at:** {click_time}")
-    def process_user_prompt(prompt):
-        st.info("⏳ Processing your prompt with LLM...")
-        start = time.time()
-        messages = [{"role": "user", "content": prompt}]
-        response, elapsed = chat_with_llm(messages)
-        st.session_state.llm_response_time = f"{elapsed} sec"
-        st.success(f"✅ LLM responded in {elapsed} sec")
-        with st.expander("🧠 LLM Response", expanded=True):
-            st.code(response, language="java")
-        st.session_state.generated_code_ready = True
-    process_user_prompt(user_input)
+    if send_clicked and user_input.strip():
+        click_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        st.info(f"📩 **Send clicked at:** {click_time}")
+
+        def process_user_prompt(prompt):
+            st.info("⏳ Processing your prompt with LLM...")
+            start = time.time()
+            # Load chat history or start fresh
+            messages = st.session_state.get("chat_history", [])
+            # Append new user message
+            messages.append({"role": "user", "content": prompt})
+            response, elapsed = chat_with_llm(messages)
+            # Append assistant's response to history
+            messages.append({"role": "assistant", "content": response})
+            # Save updated history
+            st.session_state.chat_history = messages
+            st.session_state.llm_response_time = f"{elapsed} sec"
+            st.success(f"✅ LLM responded in {elapsed} sec")
+            with st.expander("🧠 LLM Response", expanded=True):
+                st.code(response, language="java")
+
+            st.session_state.generated_code_ready = True
+
+        process_user_prompt(user_input)
+
     click_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     st.balloons()
     st.info(f"📩 **Response received at:** {click_time}")
@@ -291,7 +317,7 @@ if generate_clicked:
 # (Replaces existing final test execution log and extent report handling)
 
 # Button: Run tests
-run_clicked = st.sidebar.button("✅ Run Test Now", disabled=not st.session_state.generated_code_ready)
+run_clicked = st.sidebar.button("✅ Run Test Now", disabled=not st.session_state.get("generated_code_ready", False))
 if run_clicked:
     st.markdown("**📆 Packaging Maven project and starting WebDriver session...**")
     log_box = st.empty()

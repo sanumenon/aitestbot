@@ -22,7 +22,7 @@ import org.testng.ITestListener;
 import org.testng.ITestResult;
 
 public class TestListener implements ITestListener {
-    private static ExtentReports extent = ExtentReportManager.getInstance();
+    private static ExtentReports extent = ExtentReportManager.getExtent();
     private static ThreadLocal<ExtentTest> test = new ThreadLocal<>();
 
     @Override
@@ -40,7 +40,7 @@ public class TestListener implements ITestListener {
 public void onTestFailure(ITestResult result) {
     test.get().log(Status.FAIL, "❌ Test failed: " + result.getThrowable());
 
-    Object testClass = result.getInstance();
+    Object testClass = result.getInstance();;
     WebDriver driver = null;
 
     try {

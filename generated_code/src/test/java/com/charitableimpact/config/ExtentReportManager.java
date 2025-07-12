@@ -20,7 +20,7 @@ public class ExtentReportManager {
         extent.attachReporter(sparkReporter);
     }
 
-    public static ExtentReports getInstance() {
+    public static ExtentReports getExtent() {
         return extent;
     }
 

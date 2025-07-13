@@ -14,25 +14,25 @@ import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
 
 public class GroupEditPage {
-    WebDriver driver;
+    private WebDriver driver;
 
     @FindBy(id = "group-name")
-    private WebElement groupNameField;
+    private WebElement groupNameInput;
 
-    @FindBy(xpath = "//button[contains(text(),'Save')]")
-    private WebElement saveButton;
+    @FindBy(id = "save-group")
+    private WebElement saveGroupButton;
 
     public GroupEditPage(WebDriver driver) {
         this.driver = driver;
         PageFactory.initElements(driver, this);
     }
 
-    public void editGroupName(String newName) {
-        groupNameField.clear();
-        groupNameField.sendKeys(newName);
+    public void editGroupName(String newGroupName) {
+        groupNameInput.clear();
+        groupNameInput.sendKeys(newGroupName);
     }
 
-    public void clickSaveButton() {
-        saveButton.click();
+    public void saveGroup() {
+        saveGroupButton.click();
     }
 }

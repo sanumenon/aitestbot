@@ -5,7 +5,6 @@ import org.openqa.selenium.chrome.*;
 import org.testng.*;
 import org.testng.annotations.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 import org.testng.asserts.SoftAssert;
 import com.aventstack.extentreports.*;
@@ -22,48 +21,58 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import io.github.bonigarcia.wdm.WebDriverManager;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
-
 import com.aventstack.extentreports.ExtentReports;
 import com.aventstack.extentreports.ExtentTest;
 import com.aventstack.extentreports.Status;
 import com.charitableimpact.config.ExtentReportManager;
-import io.github.bonigarcia.wdm.WebDriverManager;
 
-public class GroupEditTest {
-    WebDriver driver;
-    ExtentTest test;
+public class EditGroupTest {
+    private WebDriver driver;
+    private WebDriverWait wait;
+    private ExtentReports extent;
+    private ExtentTest test;
 
     @BeforeClass
     public void setup() {
-        ExtentReportManager.createTest("Group Edit Test");
         WebDriverManager.chromedriver().setup();
-        driver = new ChromeDriver();
-        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(180));
-        driver.manage().window().maximize();
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("--start-maximized");
+        driver = new ChromeDriver(options);
+        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        extent = ExtentReportManager.getExtent();
     }
 
     @Test
-    public void groupEditTest() {
-        test = ExtentReportManager.getTest();
-        driver.get("https://my.charitableimpact.com/users/login");
+    public void editGroupTest() {
+        test = ExtentReportManager.createTest("Edit Group Test");
+        test.log(Status.INFO, "Starting Edit Group Test");
 
         LoginPage loginPage = new LoginPage(driver);
-        loginPage.enterEmail("menon.sanu@gmail.com");
-        loginPage.enterPassword("Test123#");
-        loginPage.clickLogin();
+        loginPage.login("menon.sanu@gmail.com", "Test123#");
         test.log(Status.INFO, "Logged in successfully");
 
-        driver.get("https://my.charitableimpact.com/groups/test-group-by-sanu-updated-by-nandu/edit");
+        String groupEditUrl = "https://my.charitableimpact.com/groups/test-group-by-sanu-updated-by-nandu/edit";
+        driver.get(groupEditUrl);
+        test.log(Status.INFO, "Navigated to Group Edit Admin Page");
 
         GroupEditPage groupEditPage = new GroupEditPage(driver);
         groupEditPage.editGroupName("Cheehoo");
-        groupEditPage.clickSave();
-        test.log(Status.INFO, "Group name edited to Cheehoo and saved successfully");
+        test.log(Status.INFO, "Edited the group name to Cheehoo");
+
+        groupEditPage.saveGroup();
+        test.log(Status.INFO, "Saved the group");
+
+        // Additional verification steps can be added here
+
+        test.log(Status.INFO, "Edit Group Test completed successfully");
     }
 
     @AfterClass
-    public void teardown() {
+    public void tearDown() {
         driver.quit();
         ExtentReportManager.flush();
     }

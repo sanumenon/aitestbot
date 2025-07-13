@@ -35,7 +35,7 @@
 <a href="#"><span class="badge badge-primary"></span></a>
 </li>
 <li class="m-r-10">
-<a href="#"><span class="badge badge-primary">Jul 12, 2025 11:43:38 AM</span></a>
+<a href="#"><span class="badge badge-primary">Jul 13, 2025 01:06:42 PM</span></a>
 </li>
 </ul>
 </div>
@@ -67,8 +67,6 @@
 <a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-exclamation-circle"></i></a>
 <ul id="status-toggle" class="dropdown-menu dropdown-md p-v-0">
 <a class="dropdown-item" status="pass" href="#"><span>Pass</span><span class="status success"></span></a>
-<a class="dropdown-item" status="fail" href="#"><span>Fail</span><span class="status danger"></span></a>
-<a class="dropdown-item" status="skip" href="#"><span>Skip</span><span class="status warning"></span></a>
 <div class="dropdown-divider"></div>
 <a status="clear" class="dropdown-item" href="#"><span>Clear</span><span class="pull-right"><i class="fa fa-close"></i></span></a>
 </ul>
@@ -81,9 +79,9 @@
           tag=""
           device="">
           <div class="test-detail">
-            <p class="name">Login Test</p>
+            <p class="name">loginAndNavigateToGroupEditPage</p>
             <p class="text-sm">
-              <span>11:43:39 AM</span> / <span>00:00:10:803</span>
+              <span>1:06:44 PM</span> / <span>00:00:09:650</span>
               <span class="badge pass-bg log float-right">Pass</span>
             </p>
           </div>
@@ -91,10 +89,10 @@
 <div class="detail-head">
 <div class="p-v-10">
 <div class="info">
-<h5 class="test-status text-pass">Login Test</h5>
-<span class='badge badge-success'>07.12.2025 11:43:39 AM</span>
-<span class='badge badge-danger'>07.12.2025 11:43:49 AM</span>
-<span class='badge badge-default'>00:00:10:803</span>
+<h5 class="test-status text-pass">loginAndNavigateToGroupEditPage</h5>
+<span class='badge badge-success'>07.13.2025 1:06:44 PM</span>
+<span class='badge badge-danger'>07.13.2025 1:06:54 PM</span>
+<span class='badge badge-default'>00:00:09:650</span>
 &middot; <span class='uri-anchor badge badge-default'>#test-id=1</span>
 <span class='badge badge-default pointer float-right ml-1 et'><i class="fa fa-chevron-down"></i></span>
 <span class='badge badge-default pointer float-right ct'><i class="fa fa-chevron-up"></i></span>
@@ -105,17 +103,10 @@
   <thead><tr><th class="status-col">Status</th><th class="timestamp-col">Timestamp</th><th class="details-col">Details</th></tr></thead>
   <tbody>
       <tr class="event-row">
-        <td><span class="badge log info-bg">Info</span></td>
-        <td>11:43:49 AM</td>
+        <td><span class="badge log pass-bg">Pass</span></td>
+        <td>1:06:54 PM</td>
         <td>
-          Entering login credentials
-        </td>
-      </tr>
-      <tr class="event-row">
-        <td><span class="badge log info-bg">Info</span></td>
-        <td>11:43:49 AM</td>
-        <td>
-          Clicking on Login button
+          ✅ Test passed
         </td>
       </tr>
   </tbody>
@@ -123,25 +114,25 @@
 </div>
           </div>
         </li>
-        <li class="test-item"  status="fail" test-id="2"
+        <li class="test-item"  status="pass" test-id="2"
           author=""
           tag=""
           device="">
           <div class="test-detail">
-            <p class="name">testLogin</p>
+            <p class="name">loginAndNavigateToGroupEditPageTest</p>
             <p class="text-sm">
-              <span>11:43:49 AM</span> / <span>00:00:00:373</span>
-              <span class="badge fail-bg log float-right">Fail</span>
+              <span>1:06:44 PM</span> / <span>00:00:09:642</span>
+              <span class="badge pass-bg log float-right">Pass</span>
             </p>
           </div>
           <div class="test-contents d-none">
 <div class="detail-head">
 <div class="p-v-10">
 <div class="info">
-<h5 class="test-status text-fail">testLogin</h5>
-<span class='badge badge-success'>07.12.2025 11:43:49 AM</span>
-<span class='badge badge-danger'>07.12.2025 11:43:49 AM</span>
-<span class='badge badge-default'>00:00:00:373</span>
+<h5 class="test-status text-pass">loginAndNavigateToGroupEditPageTest</h5>
+<span class='badge badge-success'>07.13.2025 1:06:44 PM</span>
+<span class='badge badge-danger'>07.13.2025 1:06:54 PM</span>
+<span class='badge badge-default'>00:00:09:642</span>
 &middot; <span class='uri-anchor badge badge-default'>#test-id=2</span>
 <span class='badge badge-default pointer float-right ml-1 et'><i class="fa fa-chevron-down"></i></span>
 <span class='badge badge-default pointer float-right ct'><i class="fa fa-chevron-up"></i></span>
@@ -152,99 +143,17 @@
   <thead><tr><th class="status-col">Status</th><th class="timestamp-col">Timestamp</th><th class="details-col">Details</th></tr></thead>
   <tbody>
       <tr class="event-row">
-        <td><span class="badge log fail-bg">Fail</span></td>
-        <td>11:43:49 AM</td>
+        <td><span class="badge log info-bg">Info</span></td>
+        <td>1:06:51 PM</td>
         <td>
-          ❌ Test failed: org.openqa.selenium.NoSuchElementException: no such element: Unable to locate element: {"method":"xpath","selector":"//button[contains(text(),'Login')]"}
-  (Session info: chrome=137.0.7151.55)
-For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
-Build info: version: '4.21.0', revision: '79ed462ef4'
-System info: os.name: 'Linux', os.arch: 'amd64', os.version: '6.11.0-29-generic', java.version: '17.0.15'
-Driver info: org.openqa.selenium.chrome.ChromeDriver
-Command: [9f11f7dab2fea79dd80e2f6f65663001, findElement {using=xpath, value=//button[contains(text(),'Login')]}]
-Capabilities {acceptInsecureCerts: false, browserName: chrome, browserVersion: 137.0.7151.55, chrome: {chromedriverVersion: 137.0.7151.119 (e0ac9d12dff..., userDataDir: /tmp/.org.chromium.Chromium...}, fedcm:accounts: true, goog:chromeOptions: {debuggerAddress: localhost:40479}, networkConnectionEnabled: false, pageLoadStrategy: normal, platformName: linux, proxy: Proxy(), se:cdp: ws://localhost:40479/devtoo..., se:cdpVersion: 137.0.7151.55, setWindowRect: true, strictFileInteractability: false, timeouts: {implicit: 0, pageLoad: 300000, script: 30000}, unhandledPromptBehavior: dismiss and notify, webauthn:extension:credBlob: true, webauthn:extension:largeBlob: true, webauthn:extension:minPinLength: true, webauthn:extension:prf: true, webauthn:virtualAuthenticators: true}
-Session ID: 9f11f7dab2fea79dd80e2f6f65663001
+          Logged in successfully.
         </td>
       </tr>
       <tr class="event-row">
-        <td><span class="badge log warning-bg">Warning</span></td>
-        <td>11:43:49 AM</td>
+        <td><span class="badge log info-bg">Info</span></td>
+        <td>1:06:54 PM</td>
         <td>
-          ⚠️ Unable to access WebDriver for screenshot: class com.charitableimpact.config.TestListener cannot access a member of class com.charitableimpact.LoginTest with modifiers "private"
-        </td>
-      </tr>
-  </tbody>
-</table>
-</div>
-          </div>
-        </li>
-        <li class="test-item"  status="pass" test-id="3"
-          author=""
-          tag=""
-          device="">
-          <div class="test-detail">
-            <p class="name">Group Edit Test</p>
-            <p class="text-sm">
-              <span>11:43:49 AM</span> / <span>00:00:00:000</span>
-              <span class="badge pass-bg log float-right">Pass</span>
-            </p>
-          </div>
-          <div class="test-contents d-none">
-<div class="detail-head">
-<div class="p-v-10">
-<div class="info">
-<h5 class="test-status text-pass">Group Edit Test</h5>
-<span class='badge badge-success'>07.12.2025 11:43:49 AM</span>
-<span class='badge badge-danger'>07.12.2025 11:43:49 AM</span>
-<span class='badge badge-default'>00:00:00:000</span>
-&middot; <span class='uri-anchor badge badge-default'>#test-id=3</span>
-<span class='badge badge-default pointer float-right ml-1 et'><i class="fa fa-chevron-down"></i></span>
-<span class='badge badge-default pointer float-right ct'><i class="fa fa-chevron-up"></i></span>
-</div>
-</div>
-</div>          </div>
-        </li>
-        <li class="test-item"  status="skip" test-id="4"
-          author=""
-          tag=""
-          device="">
-          <div class="test-detail">
-            <p class="name">testEditGroupName</p>
-            <p class="text-sm">
-              <span>11:44:00 AM</span> / <span>00:00:00:000</span>
-              <span class="badge skip-bg log float-right">Skip</span>
-            </p>
-          </div>
-          <div class="test-contents d-none">
-<div class="detail-head">
-<div class="p-v-10">
-<div class="info">
-<h5 class="test-status text-skip">testEditGroupName</h5>
-<span class='badge badge-success'>07.12.2025 11:44:00 AM</span>
-<span class='badge badge-danger'>07.12.2025 11:44:00 AM</span>
-<span class='badge badge-default'>00:00:00:000</span>
-&middot; <span class='uri-anchor badge badge-default'>#test-id=4</span>
-<span class='badge badge-default pointer float-right ml-1 et'><i class="fa fa-chevron-down"></i></span>
-<span class='badge badge-default pointer float-right ct'><i class="fa fa-chevron-up"></i></span>
-</div>
-</div>
-</div><div class="detail-body mt-4">
-<table class="table table-sm">
-  <thead><tr><th class="status-col">Status</th><th class="timestamp-col">Timestamp</th><th class="details-col">Details</th></tr></thead>
-  <tbody>
-      <tr class="event-row">
-        <td><span class="badge log skip-bg">Skip</span></td>
-        <td>11:44:00 AM</td>
-        <td>
-          ⚠️ Test skipped: org.openqa.selenium.NoSuchElementException: no such element: Unable to locate element: {"method":"xpath","selector":"//button[contains(text(),'Login')]"}
-  (Session info: chrome=137.0.7151.55)
-For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#no-such-element-exception
-Build info: version: '4.21.0', revision: '79ed462ef4'
-System info: os.name: 'Linux', os.arch: 'amd64', os.version: '6.11.0-29-generic', java.version: '17.0.15'
-Driver info: org.openqa.selenium.chrome.ChromeDriver
-Command: [7ea34a364dbbc9fc67489d88e1228ba4, findElement {using=xpath, value=//button[contains(text(),'Login')]}]
-Capabilities {acceptInsecureCerts: false, browserName: chrome, browserVersion: 137.0.7151.55, chrome: {chromedriverVersion: 137.0.7151.119 (e0ac9d12dff..., userDataDir: /tmp/.org.chromium.Chromium...}, fedcm:accounts: true, goog:chromeOptions: {debuggerAddress: localhost:37079}, networkConnectionEnabled: false, pageLoadStrategy: normal, platformName: linux, proxy: Proxy(), se:cdp: ws://localhost:37079/devtoo..., se:cdpVersion: 137.0.7151.55, setWindowRect: true, strictFileInteractability: false, timeouts: {implicit: 0, pageLoad: 300000, script: 30000}, unhandledPromptBehavior: dismiss and notify, webauthn:extension:credBlob: true, webauthn:extension:largeBlob: true, webauthn:extension:minPinLength: true, webauthn:extension:prf: true, webauthn:virtualAuthenticators: true}
-Session ID: 7ea34a364dbbc9fc67489d88e1228ba4
+          Navigated to Group Edit Admin Page.
         </td>
       </tr>
   </tbody>
@@ -266,13 +175,13 @@ Session ID: 7ea34a364dbbc9fc67489d88e1228ba4
 <div class="col-md-3">
 <div class="card"><div class="card-body">
 <p class="m-b-0">Started</p>
-<h3>Jul 12, 2025 11:43:38 AM</h3>
+<h3>Jul 13, 2025 01:06:42 PM</h3>
 </div></div>
 </div>
 <div class="col-md-3">
 <div class="card"><div class="card-body">
 <p class="m-b-0">Ended</p>
-<h3>Jul 12, 2025 11:44:00 AM</h3>
+<h3>Jul 13, 2025 01:06:54 PM</h3>
 </div></div>
 </div>
 <div class="col-md-3">
@@ -284,7 +193,7 @@ Session ID: 7ea34a364dbbc9fc67489d88e1228ba4
 <div class="col-md-3">
 <div class="card"><div class="card-body">
 <p class="m-b-0 text-fail">Tests Failed</p>
-<h3>1</h3>
+<h3>0</h3>
 </div></div>
 </div>
 </div>
@@ -300,13 +209,13 @@ Session ID: 7ea34a364dbbc9fc67489d88e1228ba4
 </div>
 </div>
 <div class="card-footer">
-<div><small data-tooltip='50%'>
+<div><small data-tooltip='100%'>
 <b>2</b> tests passed
 </small>
 </div>
 <div>
-<small data-tooltip='25%'><b>1</b> tests failed,
-<b>1</b> skipped, <b data-tooltip='0%'>0</b> others
+<small data-tooltip='0%'><b>0</b> tests failed,
+<b>0</b> skipped, <b data-tooltip='0%'>0</b> others
 </small>
 </div>
 </div>
@@ -323,10 +232,10 @@ Session ID: 7ea34a364dbbc9fc67489d88e1228ba4
 </div>
 </div>
 <div class="card-footer">
-<div><small data-tooltip='0%'><b>0</b> events passed</small></div>
+<div><small data-tooltip='33%'><b>1</b> events passed</small></div>
 <div>
-<small data-tooltip='20%'><b>1</b> events failed,
-<b data-tooltip='%'>4</b> others
+<small data-tooltip='0%'><b>0</b> events failed,
+<b data-tooltip='%'>2</b> others
 </small>
 </div>
 </div>
@@ -342,7 +251,7 @@ Session ID: 7ea34a364dbbc9fc67489d88e1228ba4
 </div></div>
 <script>
 var timeline = {
-"Login Test":10.803,"testLogin":0.373,"Group Edit Test":0,"testEditGroupName":0
+"loginAndNavigateToGroupEditPage":9.65,"loginAndNavigateToGroupEditPageTest":9.642
 };
 </script>
 <div class="row">
@@ -352,9 +261,9 @@ var timeline = {
 var statusGroup = {
 parentCount: 5,
 passParent: 2,
-failParent: 1,
+failParent: 0,
 warningParent: 0,
-skipParent: 1,
+skipParent: 0,
 childCount: 5,
 passChild: 0,
 failChild: 0,
@@ -368,10 +277,10 @@ warningGrandChild: 0,
 skipGrandChild: 0,
 infoGrandChild: 0,
 eventsCount: 5,
-passEvents: 0,
-failEvents: 1,
-warningEvents: 1,
-skipEvents: 1,
+passEvents: 1,
+failEvents: 0,
+warningEvents: 0,
+skipEvents: 0,
 infoEvents: 2
 };
 </script>        </div>

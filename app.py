@@ -44,7 +44,7 @@ for key, default in required_session_keys.items():
 if not st.session_state.initialized:
     st.set_page_config(page_title="AI Test Bot for Charitable Impact", layout="wide")
     st.title("🤖 AI Test Bot for Charitableimpact")
-    st.write("Generate and run Selenium Java test cases with LLM + POM support")
+    st.write("Generate and run Selenium Java test cases with LLM & POM support")
 
     os.makedirs("cache", exist_ok=True)
     os.makedirs("rag_versions", exist_ok=True)
@@ -185,8 +185,9 @@ if st.session_state.get("llm_choice") and not st.session_state.get("_llm_set_onc
     st.session_state["_llm_set_once"] = True
 
 # ✅ Prompt input and LLM processing
-st.subheader("🗣️ Ask a Test Question or Feature Prompt")
-user_input = st.text_area("💬 Your prompt", key="user_prompt_input")
+st.subheader("🗣️ Provide a Functional Test Instruction")
+#user_input = st.text_area("💬 Your prompt", key="user_prompt_input")
+user_input = st.text_area(label="", key="user_prompt_input", label_visibility="collapsed")
 send_clicked = st.button("📨 Generate Test cases")
 
 if send_clicked and user_input.strip():

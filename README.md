@@ -1,86 +1,144 @@
-AI TestBot for Test case Generation
-Repository: https://github.com/sanumenon/aitestbot
+# Project Overview
 
-AI TestBot is a Streamlit-based application that enables users to generate, execute, and download Java test automation code (using Selenium and TestNG). It supports natural language prompts, integrates with LLMs (local or OpenAI), handles optional Retrieval-Augmented Generation (RAG) via documentation ingestion, and provides interactive test execution and reporting.
+This project is a Python-based test automation framework that integrates with Java-based test execution. It provides a seamless workflow for generating test automation code, executing tests, and reviewing reports. The project uses `Streamlit` for the user interface, `Jinja2` for templating, and `FAISS` for retrieval-augmented generation (RAG) workflows. Below is a detailed description of how the files interact with each other and their individual roles.
 
-Folder Structure
+---
 
+## File Interactions and Workflow
 
-aitestbot/
+1. **User Interaction**:
+   - The user interacts with the application through the `Streamlit` interface provided by app.py.
+   - Inputs such as test requirements, DOM elements, or prompts are processed by various backend modules.
 
-├── app.py               # Streamlit UI and orchestration logic
+2. **Code Generation**:
+   - code_generator.py uses user inputs to generate Java test automation code.
+   - It relies on templates stored in the templates directory to create test classes, page objects, and Maven configuration files.
 
-├── llm_engine.py        # Handles LLM setup and prompt communication
- 
-├── code_generator.py    # Converts prompts to Java automation code
+3. **Test Execution**:
+   - Once the code is generated, executor.py executes the tests using Maven commands.
+   - Logs from the execution are streamed back to the user interface in real-time.
 
-├── dom_scraper.py       # Helps identify DOM elements for test code
+4. **Report Generation**:
+   - After test execution, Extent Reports are generated and stored in the `generated_code/test-output/` directory.
+   - The user can download these reports directly from the interface.
 
-├── executor.py          # Triggers Maven test execution and streams logs
+5. **Context Management**:
+   - memory_manager.py tracks the conversation context to maintain continuity in user interactions.
+   - intent_cache.py caches user prompts and generated code for reuse, improving efficiency.
 
-├── intent_cache.py      # Saves prompt→code mappings to reduce regeneration
+6. **RAG Workflow**:
+   - doc_ingestor.py ingests documents (PDFs or URLs) to build FAISS indexes stored in the rag_index directory.
+   - rag_search.py retrieves relevant context from these indexes to assist in generating accurate test code.
 
-├── memory_manager.py    # Maintains multi-turn conversation context
+7. **DOM Scraping**:
+   - dom_scraper.py extracts metadata from DOM elements provided by the user.
+   - This metadata is used to suggest validations or generate page object methods.
 
-├── doc_ingestor.py      # Ingests PDFs or URLs and creates FAISS index (for RAG)
+8. **LLM Integration**:
+   - llm_engine.py manages interactions with local or OpenAI LLMs to generate test code or provide suggestions.
 
-├── rag_search.py        # Retrieves context from ingested documents
+---
 
-├── generated_code/      # Output directory for generated test code projects
+## File Descriptions
 
-└── cache/               # Stores session data and RAG indices
+### Core Application Files
 
+- **`app.py`**:
+  - The main entry point for the application.
+  - Provides a `Streamlit`-based user interface for test generation, execution, and report download.
 
+- **`config.py`**:
+  - Contains configuration settings and utility functions used across the application.
 
-Installation
+- **`executor.py`**:
+  - Executes Maven commands to compile and run the generated Java test code.
+  - Streams logs from the execution process to the user interface.
 
-Prerequisites
+- **`memory_manager.py`**:
+  - Tracks the conversation context to maintain continuity in user interactions.
+  - Stores session data in memory.json.
 
-1. Python 3.10 or higher
-2. Git
-3. (Optional) OpenAI API key for online LLM usage
-4. (Optional) ChromeDriver/GeckoDriver for local Selenium
-5. (Optional) Maven 3.x for Java project builds
+- **`intent_cache.py`**:
+  - Caches user prompts and generated code in intent_cache.json for reuse.
 
-Setup
+---
 
-1. git clone https://github.com/sanumenon/aitestbot.git
-2. cd aitestbot
-3. pip install -r requirements.txt
-4. Dependencies include streamlit, transformers, openai, faiss-cpu, langchain-community, beautifulsoup4, tinydb, among others.
+### Code Generation
 
-Usage
+- **`code_generator.py`**:
+  - Generates Java test automation code using user inputs and Jinja2 templates.
+  - Outputs the generated code to the generated_code directory.
 
-Launch Application from terminal : streamlit run app.py
+- **templates**:
+  - Contains Jinja2 templates for generating Java code:
+    - `test_template.java.j2`: Template for test classes.
+    - `page_template.java.j2`: Template for page object classes.
+    - `pom.xml.j2`: Template for Maven POM files.
 
-Sidebar Controls:
+---
 
-1. Environment: Select from production, qa, or stage
-2. Target URL: e.g., https://my.charitableimpact.com
-3. LLM Mode: Choose between local model (e.g., TinyLlama) or OpenAI
-4. Ingest Documentation: Upload PDF or enter URL for RAG context
-5. Memory / Cache Options: Manage cached prompts and history
+### RAG Workflow
 
-Primary Workflows
-1. Prompt-Only Testing
-		Enter natural language test scenario
-		Generate Java + Selenium + TestNG code
-		Execute immediately and download ExtentReport output
-2. RAG-Assisted Testing
-		Ingest relevant docs or URLs
-		Generate context-enriched test code
-		Execute and export results
-3. Intent Caching
-		Reuse previously generated code for repeat prompts via IntentCache
+- **`doc_ingestor.py`**:
+  - Ingests documents (PDFs or URLs) to build FAISS indexes.
+  - Stores indexes in the rag_index directory.
 
-Module Overview
-	1. llm_engine.py: Facilitates communication with chosen LLM (local or OpenAI)
-	2. code_generator.py: Transforms prompt documents into Java-based test files
-	3.	doc_ingestor.py: CLI support for PDF/URL ingestion and FAISS index creation
-	4.	executor.py: Runs generated projects via Maven, streams console and builds
-	5. rag_search.py: Retrieves document context to enrich code generation
-	6. intent_cache.py: Improves performance by storing and reusing generated test code
+- **`rag_search.py`**:
+  - Retrieves relevant context from FAISS indexes to assist in generating accurate test code.
 
-CI/CD Support
-	1. A Dockerfile and GitHub Actions configuration allow headless build, test execution, and report generation.
-	2. Integrates generated code tests into CI pipelines to maintain continuous quality validation.
+- **rag_index**:
+  - Stores FAISS indexes for retrieval-augmented generation workflows.
+
+- **rag_versions**:
+  - Stores snapshots of FAISS indexes for versioning.
+
+---
+
+### DOM Scraping
+
+- **`dom_scraper.py`**:
+  - Extracts metadata from DOM elements provided by the user.
+  - Suggests validations or generates page object methods based on the extracted metadata.
+
+---
+
+### LLM Integration
+
+- **`llm_engine.py`**:
+  - Manages interactions with local or OpenAI LLMs.
+  - Generates test code or provides suggestions based on user inputs.
+
+---
+
+### Generated Code and Reports
+
+- **generated_code**:
+  - Contains the output of the code generation process:
+    - `src/`: Source code for generated tests.
+    - `pom.xml`: Maven configuration for the generated project.
+    - `test-output/`: Extent Reports and screenshots.
+
+- **cache**:
+  - Stores temporary files and session data:
+    - `generated_tests/`: Contains Maven target directories and test artifacts.
+    - `intent_cache.json`: Caches user intents.
+    - `memory.json`: Stores session memory.
+
+---
+
+### Other Files
+
+- **`requirements.txt`**:
+  - Lists the Python dependencies required for the project.
+
+- **`.env`**:
+  - Stores environment variables for configuration.
+
+- **`README.md`**:
+  - Documentation for the project.
+
+---
+
+## Summary
+
+This project is designed to streamline the process of generating, executing, and reviewing test automation code. Each file plays a specific role in the workflow, from user interaction to report generation. The modular structure ensures that components can be reused or extended as needed.

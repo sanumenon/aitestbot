@@ -8,16 +8,27 @@ Folder Structure
 
 aitestbot/
 ├── app.py               # Streamlit UI and orchestration logic
+
 ├── llm_engine.py        # Handles LLM setup and prompt communication
+
 ├── code_generator.py    # Converts prompts to Java automation code
+
 ├── dom_scraper.py       # Helps identify DOM elements for test code
+
 ├── executor.py          # Triggers Maven test execution and streams logs
+
 ├── intent_cache.py      # Saves prompt→code mappings to reduce regeneration
+
 ├── memory_manager.py    # Maintains multi-turn conversation context
+
 ├── doc_ingestor.py      # Ingests PDFs or URLs and creates FAISS index (for RAG)
+
 ├── rag_search.py        # Retrieves context from ingested documents
+
 ├── generated_code/      # Output directory for generated test code projects
+
 └── cache/               # Stores session data and RAG indices
+
 
 
 Installation
@@ -32,16 +43,14 @@ Prerequisites
 
 Setup
 
-git clone https://github.com/sanumenon/aitestbot.git
-cd aitestbot
-pip install -r requirements.txt
-Dependencies include streamlit, transformers, openai, faiss-cpu, langchain-community, beautifulsoup4, tinydb, among others.
+1. git clone https://github.com/sanumenon/aitestbot.git
+2. cd aitestbot
+3. pip install -r requirements.txt
+4. Dependencies include streamlit, transformers, openai, faiss-cpu, langchain-community, beautifulsoup4, tinydb, among others.
 
 Usage
 
-Launch Application
-
-streamlit run app.py
+Launch Application from terminal : streamlit run app.py
 
 Sidebar Controls:
 

@@ -1,175 +1,97 @@
-Here’s a polished, comprehensive **README.md** for your **AI Test Bot** project, tailored to developers with basic programming knowledge. It clearly explains the project purpose, folder structure, installation, usage flows (including optional RAG ingestion), and common scenarios.
+AI TestBot for Test case Generation
+Repository: https://github.com/sanumenon/aitestbot
 
----
+AI TestBot is a Streamlit-based application that enables users to generate, execute, and download Java test automation code (using Selenium and TestNG). It supports natural language prompts, integrates with LLMs (local or OpenAI), handles optional Retrieval-Augmented Generation (RAG) via documentation ingestion, and provides interactive test execution and reporting.
 
-# 🤖 AI Test Bot for Charitableimpact.com
-
-A Streamlit-based tool that enables non-technical users to **generate**, **run**, and **download** Java test automation code (Selenium + TestNG + Maven) for `charitableimpact.com`. It integrates LLMs (Local or OpenAI), DOM scraping, intent caching, and optional RAG-based help doc ingestion.
-
----
-
-## 📁 Folder Structure
-
-```
+Folder Structure
+graphql
+Copy
+Edit
 aitestbot/
-├── app.py                     # Main Streamlit UI and orchestrator
-├── llm_engine.py             # LLM setup & chat logic (local/openai)
-├── code_generator.py        # Java test code generation logic
-├── dom_scraper.py           # HTML element identification utilities
-├── executor.py              # Executes Maven and streams logs
-├── intent_cache.py          # Caches user prompts & generated code
-├── memory_manager.py        # Tracks conversation context
-├── doc_ingestor.py          # (Enhanced) PDF/URL ingestion → FAISS index
-├── rag_search.py            # RAG memory retrieval
-├── generated_code/          # Maven project output
-└── cache/                   # Session & RAG index storage
-```
+├── app.py               # Streamlit UI and orchestration logic
+├── llm_engine.py        # Handles LLM setup and prompt communication
+├── code_generator.py    # Converts prompts to Java automation code
+├── dom_scraper.py       # Helps identify DOM elements for test code
+├── executor.py          # Triggers Maven test execution and streams logs
+├── intent_cache.py      # Saves prompt→code mappings to reduce regeneration
+├── memory_manager.py    # Maintains multi-turn conversation context
+├── doc_ingestor.py      # Ingests PDFs or URLs and creates FAISS index (for RAG)
+├── rag_search.py        # Retrieves context from ingested documents
+├── generated_code/      # Output directory for generated test code projects
+└── cache/               # Stores session data and RAG indices
+Installation
+Prerequisites
+Python 3.10 or higher
 
----
+Git
 
-## 🛠️ Setup & Installation
+(Optional) OpenAI API key for online LLM usage
 
-### Prerequisites:
+(Optional) ChromeDriver/GeckoDriver for local Selenium
 
-* Python 3.10+
-* Git
-* (Optional) OpenAI API key
+(Optional) Maven 3.x for Java project builds
 
-### Install dependencies:
-
-```bash
+Setup
+bash
+Copy
+Edit
 git clone https://github.com/sanumenon/aitestbot.git
 cd aitestbot
 pip install -r requirements.txt
-```
+Dependencies include streamlit, transformers, openai, faiss-cpu, langchain-community, beautifulsoup4, tinydb, among others.
 
-**Requirements include:**
-`streamlit`, `transformers`, `openai`, `faiss-cpu`, `langchain-community`, `beautifulsoup4`, `tinydb`, etc.
-
-### Optional:
-
-* Chrome or Geckodriver for local Selenium
-* Maven 3.x
-
----
-
-## 🚀 Run the App
-
-```bash
+Usage
+Launch Application
+bash
+Copy
+Edit
 streamlit run app.py
-```
+Sidebar Controls:
+Environment: Select from production, qa, or stage
 
-Key sidebar controls:
+Target URL: e.g., https://qa.charitableimpact.com
 
-* **Environment**: `production`, `qa`, or `stage`
-* **Custom URL**: e.g. `https://qa.my.charitableimpact.com`
-* **LLM Mode**: Use local models (e.g., TinyLlama) or OpenAI
-* **Ingest Help Docs**: Use a PDF or URL to index help content (RAG)
-* **Memory / Intent Cache**: For cleaning or exporting chat logs
+LLM Mode: Choose between local model (e.g., TinyLlama) or OpenAI
 
----
+Ingest Documentation: Upload PDF or enter URL for RAG context
 
-## ⚙️ Usage Scenarios
+Memory / Cache Options: Manage cached prompts and history
 
-### 1. **Generate Test Case (No RAG)**
+Primary Workflows
+Prompt-Only Testing
 
-* Enter test prompt:
-  `"Login with admin@example.com/pass123 and verify dashboard widgets."`
-* Bot generates `Java + Selenium + TestNG` code
-* Code saved under `generated_code/src/...`
-* Run tests via sidebar → click **Run Test Now**
-* Download Extent Report or manually open
+Enter natural language test scenario
 
-### 2. **Generate Test Case (With RAG)**
+Generate Java + Selenium + TestNG code
 
-* Upload PDF or enter URL in sidebar → click **Ingest Help Docs**
-* Bot uses RAG content to inform test generation
-* Execute test steps similar to (1)
+Execute immediately and download ExtentReport output
 
-### 3. **Cache Reuse**
+RAG-Assisted Testing
 
-* Same prompt → uses `IntentCache`, reuses previously generated code instantly
+Ingest relevant docs or URLs
 
----
+Generate context-enriched test code
 
-## 📝 README Walkthrough
+Execute and export results
 
-### 1. **`llm_engine.py`**
+Intent Caching
 
-* Loads local (TinyLlama/Mistral) or OpenAI
-* `chat_with_llm()` adds a system prompt to restrict LLM to:
+Reuse previously generated code for repeat prompts via IntentCache
 
-  * `charitableimpact.com`
-  * Java + Selenium + TestNG + Maven only
-* Returns `(response, elapsed_time)`
+Module Overview
+llm_engine.py: Facilitates communication with chosen LLM (local or OpenAI)
 
-### 2. **`intent_cache.py`**
+code_generator.py: Transforms prompt documents into Java-based test files
 
-* Uses `TinyDB` to store prompt→hash→code mapping
-* Ensures prompt reuse speeds up repeated generations
+doc_ingestor.py: CLI support for PDF/URL ingestion and FAISS index creation
 
-### 3. **`doc_ingestor.py`**
+executor.py: Runs generated projects via Maven, streams console and builds
 
-* CLI entry: `python doc_ingestor.py <path_or_URL> <true/false>`
-* PDF ingestion or multi-page web scraping (BeautifulSoup + WebBaseLoader)
-* Splits docs, builds FAISS index in `../cache/rag_index`
-* Used in RAG-based generation to provide context
+rag_search.py: Retrieves document context to enrich code generation
 
-### 4. **`app.py` Flow**
+intent_cache.py: Improves performance by storing and reusing generated test code
 
-* Builds chat history, caches user queries
-* Calls `chat_with_llm()` to generate test code
-* Queues modules, optionally batches with sidebar button
-* Runs tests, shows logs, packaging, Extent Report download
+CI/CD Support
+A Dockerfile and GitHub Actions configuration allow headless build, test execution, and report generation.
 
----
-
-## ✅ Optional Profiles
-
-| Feature               | Command / UI action                                             |
-| --------------------- | --------------------------------------------------------------- |
-| Run with OpenAI       | Set LLM Mode = **OpenAI** (API key needed)                      |
-| Use local LLM         | Set LLM Mode = **Local**, pick model (TinyLlama, Mistral, etc.) |
-| Ingest PDF help docs  | Upload PDF → press **📥 Ingest Help Docs**                      |
-| Ingest URL help docs  | Enter doc URL → press **📥 Ingest Help Docs**                   |
-| Generate test modules | Use chat + press **Generate All Modules** on sidebar            |
-| Run tests             | Press **Run Test Now** → view logs, download report             |
-
----
-
-## 🛡️ Troubleshooting & Tips
-
-* **Browser not opening**: Download Extent Report manually and open locally
-* **Local model issues**: Ensure sufficient RAM or GPU and use `device_map="auto"`
-* **Maven build fails**: Inspect logs streamed in UI, ensure `pom.xml` is correct
-* **RAG indexing**: If `rag_index` appears empty, check internet connectivity and PDF validity
-
----
-
-## ⏩ Next Steps
-
-* Extend support for other test frameworks (e.g. JUnit)
-* Add CI/CD integration to save snapshots of generated code
-* Automatically embed Extent Report in Streamlit via iframe
-* Support other vector stores (e.g. Chroma, Weaviate)
-
----
-
-## 🧑‍💻 Contribution
-
-Feel free to:
-
-* Raise issues
-* Suggest enhancements
-* Submit pull requests
-
----
-
-## 🧾 License
-
-MIT License — refer to `LICENSE` file.
-
----
-
-Let me know if you'd like a **visual diagram** or **CLI-only usage guide** as a separate section.
-
+Integrates generated code tests into CI pipelines to maintain continuous quality validation.

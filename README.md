@@ -4,91 +4,51 @@ This project is a Python-based test automation framework that integrates with Ja
 
 
 Folder Structure:
-
+````
 ai-test-bot/
 ├── .env                        # Environment variables for configuration
-|
 ├── app.py                      # Main Streamlit application for UI and orchestration
-|
 ├── code_generator.py           # Generates Java test automation code using templates
-|
 ├── config.py                   # Configuration settings and utility functions
-|
 ├── cookies.pkl                 # Stores browser cookies for session persistence
-|
 ├── doc_ingestor.py             # Handles ingestion of PDFs or URLs to build FAISS indexes
-|
 ├── dom_scraper.py              # Scrapes DOM elements and suggests validations
-|
 ├── executor.py                 # Executes Maven commands and streams logs
-|
 ├── intent_cache.py             # Caches user prompts and generated code for reuse
-|
 ├── llm_engine.py               # Manages interactions with local or OpenAI LLMs
-|
 ├── memory_manager.py           # Tracks and manages conversation context
-|
 ├── rag_search.py               # Retrieves context from FAISS indexes for RAG-based workflows
-|
 ├── README.md                   # Documentation for the project
-|
 ├── requirements.txt            # Python dependencies for the project
-|
 ├── __pycache__/                # Compiled Python files for caching
-    |
 │   ├── *.pyc                   # Cached bytecode files
-|
 ├── .vscode/                    # Visual Studio Code workspace settings
-| 
 ├── cache/                      # Stores temporary files and session data
 │   ├── generated_tests/        # Generated test artifacts
-|    |
 │   │   ├── target/             # Maven target directory for test results
-|   |    |
 │   │   │   ├── surefire-reports/  # TestNG reports (HTML, XML, CSS, JS)
-|   |   |     |
 │   │   │   ├── test-output/    # Extent Reports and screenshots
-|
 │   ├── intent_cache.json       # JSON file for caching user intents
-|   |
 │   ├── memory.json             # JSON file for storing session memory
-|   |
 ├── generated_code/             # Output directory for generated Java test code
-|
 │   ├── src/                    # Source code for generated tests
-|   |
 │   │   ├── test/               # Test classes and page objects
-|   |   |
 │   │   │   ├── java/           # Java package structure
-|   |   |   |
 │   │   │   │   ├── com/charitableimpact/
-|   |   |   |   |
 │   │   │   │   │   ├── GroupEditTest.java  # Example test class
-|   |   |   |   |   |
 │   │   │   │   │   ├── GroupEditPage.java  # Example page object
-|   |   |   |   |   |
 │   │   │   │   │   ├── config/             # Configuration classes
-|   |   |   |   |   |
 │   │   │   │   │   │   ├── ExtentReportManager.java  # ExtentReports setup
-|   |   |   |   |   |   |
 │   │   │   │   │   │   ├── TestListener.java        # TestNG listener for reporting
-|
 │   ├── pom.xml                # Maven configuration for the generated project
-|   |
 │   ├── test-output/           # Extent Reports and screenshots
-|   
 ├── rag_index/                 # FAISS index for RAG-based workflows
-|
 ├── rag_versions/              # Snapshots of RAG indexes for versioning
-|
 ├── templates/                 # Jinja2 templates for generating Java code
-|
 │   ├── test_template.java.j2  # Template for test classes
-|
 │   ├── page_template.java.j2  # Template for page object classes
-|
 │   ├── pom.xml.j2             # Template for Maven POM files
-
+````
 
 ## File Interactions and Workflow
 

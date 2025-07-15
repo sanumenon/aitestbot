@@ -9,15 +9,25 @@ Folder Structure
 aitestbot/
 
 ├── app.py               # Streamlit UI and orchestration logic
+├
 ├── llm_engine.py        # Handles LLM setup and prompt communication
+├ 
 ├── code_generator.py    # Converts prompts to Java automation code
+├
 ├── dom_scraper.py       # Helps identify DOM elements for test code
+├
 ├── executor.py          # Triggers Maven test execution and streams logs
+├
 ├── intent_cache.py      # Saves prompt→code mappings to reduce regeneration
+├
 ├── memory_manager.py    # Maintains multi-turn conversation context
+├
 ├── doc_ingestor.py      # Ingests PDFs or URLs and creates FAISS index (for RAG)
+├
 ├── rag_search.py        # Retrieves context from ingested documents
+├
 ├── generated_code/      # Output directory for generated test code projects
+├
 └── cache/               # Stores session data and RAG indices
 
 

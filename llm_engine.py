@@ -22,23 +22,23 @@ OPENAI_MODEL_NAME = "gpt-3.5-turbo"
 # Global state
 RESTRICTION_PROMPT = """
     You are a highly specialized AI test case generator for the application my.charitableimpact.com.
-    You must only respond to test case generation requests strictly related to the domain charitableimpact.com.
+    Only respond to test case generation requests that are clearly related to charitableimpact.com or any of its valid subdomains, including my.charitableimpact.com, my.qa.charitableimpact.com, and my.stg.charitableimpact.com.
 
-    ✅ **Code Requirements:**
+     **Code Requirements:**
     - Only generate test automation code in **Java** using **Selenium 4.2 or higher**, **TestNG**, and **Maven**.
     - Follow the **Page Object Model (POM)** design pattern.
-    - Use **WebDriverManager** for driver setup (❌ No hardcoded paths like `C:/.../chromedriver.exe`).
-    - ✅ Always include `import io.github.bonigarcia.wdm.WebDriverManager;` in the Test class.
+    - Use **WebDriverManager** for driver setup ( No hardcoded paths like `C:/.../chromedriver.exe`).
+    -  Always include `import io.github.bonigarcia.wdm.WebDriverManager;` in the Test class.
     - Use Selenium 4+ syntax for waits, e.g., `new WebDriverWait(driver, Duration.ofSeconds(10))`, and always import `java.time.Duration`.
-    - ❌ Do not use deprecated timeout APIs like `TimeUnit.SECONDS` or `implicitlyWait(10, TimeUnit.SECONDS)`.
-    - ✅ Always use `Duration.ofSeconds(10)` for waits and timeouts, and import `java.time.Duration`.
+    -  Do not use deprecated timeout APIs like `TimeUnit.SECONDS` or `implicitlyWait(10, TimeUnit.SECONDS)`.
+    -  Always use `Duration.ofSeconds(10)` for waits and timeouts, and import `java.time.Duration`.
     - Assume latest stable **Selenium 4.2+**, **TestNG**, and **Java 11+**.
-    - ❌ Never use deprecated methods like `findElementBy...`.
-    - ❌ Never reference Selenium IDE or other languages/frameworks.
+    -  Never use deprecated methods like `findElementBy...`.
+    -  Never reference Selenium IDE or other languages/frameworks.
 
-    🔴 All test classes must include ExtentReports and WebDriverManager:
-    - ✅ Always import the following in every Test class:
-    ❌ Do NOT call ExtentReportManager.getExtent() — that method is not allowed
+     All test classes must include ExtentReports and WebDriverManager:
+    -  Always import the following in every Test class:
+     Do NOT call ExtentReportManager.getExtent() — that method is not allowed
     ```java
     import com.aventstack.extentreports.ExtentReports;
     import com.aventstack.extentreports.ExtentTest;
@@ -46,39 +46,39 @@ RESTRICTION_PROMPT = """
     import com.charitableimpact.config.ExtentReportManager;
     import io.github.bonigarcia.wdm.WebDriverManager;
     ```
-    - ✅ At the beginning of each test method, initialize logging:
+    -  At the beginning of each test method, initialize logging:
     ```java
     ExtentTest test = ExtentReportManager.createTest(TestName);
     ```
-    - ✅ Log steps using:
+    -  Log steps using:
     ```java
     test.log(Status.INFO, Step description here);
     ```
-    - ✅ In `@AfterClass`, call:
+    -  In `@AfterClass`, call:
     ```java
     ExtentReportManager.flush();
     ```
-    - 📄 Reports must be saved to: `generated_code/ExtentReport/ExtentReport.html`
-    - ❌ Do NOT skip any of the above steps. Assume all required classes and configs are available.
-    🧩 **POM Structure Enforcement:**
-    ✔️ Always generate **two separate classes** per module:
+    -  Reports must be saved to: `generated_code/ExtentReport/ExtentReport.html`
+    -  Do NOT skip any of the above steps. Assume all required classes and configs are available.
+     **POM Structure Enforcement:**
+     Always generate **two separate classes** per module:
       1. A **Page Object class** (e.g., `LoginPage.java`) with `@FindBy`-annotated WebElements and methods for user actions.
       2. A **Test class** (e.g., `LoginTest.java`) with WebDriver setup/teardown using `@BeforeClass/@AfterClass` and `@Test`-annotated methods.
-    ✔️ In Page class constructor, always initialize elements using `PageFactory.initElements(driver, this);`.
-    ✔️ Page classes must **not contain any WebDriver setup** or TestNG annotations.
-    ✔️ Test classes must **only use methods from their Page class** to perform actions.
-    ✔️ Classes must be **self-contained**, Maven-compatible, and **compile without errors**.
-    ✔️ Always include **all required `import` statements** explicitly.
-    🔗 **User Flow Decomposition:**
-    ✔️ If the prompt contains multiple actions (e.g., login → edit → verify), break it into logical flows.
-    ✔️ Generate a **Page class and corresponding Test class** for each flow.
-    ✔️ Test classes may chain multiple Page classes but should follow actual navigation paths.
-    🚫 **Restrictions:**
-    ❌ Never combine multiple Java classes in the same code block.
-    ❌ Never generate incomplete or partial class bodies.
-    ❌ Never skip class or method closing braces.
-    ❌ Do not use elements or flows that don't exist on charitableimpact.com.
-    🧪 **Output Format (Strict):**
+     In Page class constructor, always initialize elements using `PageFactory.initElements(driver, this);`.
+     Page classes must **not contain any WebDriver setup** or TestNG annotations.
+     Test classes must **only use methods from their Page class** to perform actions.
+     Classes must be **self-contained**, Maven-compatible, and **compile without errors**.
+     Always include **all required `import` statements** explicitly.
+     **User Flow Decomposition:**
+     If the prompt contains multiple actions (e.g., login → edit → verify), break it into logical flows.
+     Generate a **Page class and corresponding Test class** for each flow.
+     Test classes may chain multiple Page classes but should follow actual navigation paths.
+     **Restrictions:**
+     Never combine multiple Java classes in the same code block.
+     Never generate incomplete or partial class bodies.
+     Never skip class or method closing braces.
+     Do not use elements or flows that don't exist on charitableimpact.com.
+     **Output Format (Strict):**
     - Start each class with a clear header **at the beginning of the line**.
     - Use this format exactly:
     === PAGE OBJECT CLASS: <ClassName> ===
@@ -89,15 +89,15 @@ RESTRICTION_PROMPT = """
     ```java
     // full test class code here
     ```
-    🌐 **Valid Environments:**
+    **Valid Environments:**
     - https://my.charitableimpact.com (Production)
-    - https://qa.my.charitableimpact.com (QA)
-    - https://stage.my.charitableimpact.com (Stage)
-    📍 **Valid paths include (but not limited to):**
+    - https://my.qa.charitableimpact.com (QA)
+    - https://my.stg.charitableimpact.com (Stage)
+     **Valid paths include (but not limited to):**
     - `/users/login`, `/dashboard`, `/groups/edit`, `/impact-account/...`, `/search?...`, `/give/...`, `/charities/...`, `/user/...`, `/campaigns/...`
-    If the prompt clearly has nothing to do with the charitableimpact.com domain or its functionality, respond with: 
-    '❌ I can only help with test case generation for the domain charitableimpact.com using Java + Selenium + TestNG + Maven.'
-    Otherwise, follow all code requirements strictly and generate full Java + Selenium + TestNG test classes.
+    If the prompt is unrelated to my.charitableimpact.com, you may respond:
+    "This use case seems unrelated to *.charitableimpact.com or the given valid environments. Could you confirm the flow or page involved?"
+    If it is related, proceed with test case generation as instructed , follow all code requirements strictly and generate full Java + Selenium + TestNG test classes.
     """.strip()
 local_tokenizer = None
 local_model = None
@@ -199,19 +199,19 @@ def set_llm_mode(mode: str):
         llm_mode = None
     print(f"🔁 LLM mode set to: {llm_mode}")
 
-# # Function to handle chat interactions with the LLM
-def chat_with_llm(prompt_messages: list, temperature=0.7) -> tuple[str, float]:
+# Function to handle chat interactions with the LLM
+def chat_with_llm(prompt_messages: list, temperature=0.7, return_usage=False) -> tuple:
     start_time = time.time()
-    # Debug logging
     print(f"🔍 chat_with_llm called with mode: {llm_mode}")
 
     # Inject restriction prompt only if not already present
-    # ✅ Inject restriction prompt only if not already included
     if not any(RESTRICTION_PROMPT.strip() in m["content"] for m in prompt_messages if m["role"] == "system"):
         prompt_messages = [{"role": "system", "content": RESTRICTION_PROMPT}] + [
             m for m in prompt_messages if m["role"] != "system"]
 
-    # Process based on LLM mode
+    usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
+    # Handle Local LLM
     if llm_mode == "local" and local_model and local_chatbot_pipeline:
         try:
             if hasattr(local_tokenizer, "chat_template") and local_tokenizer.chat_template:
@@ -225,7 +225,7 @@ def chat_with_llm(prompt_messages: list, temperature=0.7) -> tuple[str, float]:
                 )
 
             print("🧠 Sending input to local model:")
-            print(formatted_input[:300])  # limit long prints
+            print(formatted_input[:300])
 
             result = local_chatbot_pipeline(
                 formatted_input,
@@ -236,16 +236,20 @@ def chat_with_llm(prompt_messages: list, temperature=0.7) -> tuple[str, float]:
             )
 
             if not result or not result[0].get("generated_text"):
-                print(f"🔁 Raw local model result:{result}")
-                raise ValueError("⚠️ Local model returned empty result")               
+                raise ValueError("⚠️ Local model returned empty result")
 
             final_response = result[0]["generated_text"].replace(formatted_input, "").strip()
             print(f"🧠 Local response length: {len(final_response.split())} tokens (approx)")
+
+            # Approximate usage (no official token count from local model)
+            usage["prompt_tokens"] = len(formatted_input.split())
+            usage["completion_tokens"] = len(final_response.split())
+            usage["total_tokens"] = usage["prompt_tokens"] + usage["completion_tokens"]
+
         except Exception as e:
-            print(f"❌ Local model inference failed: {e}")
             final_response = f"❌ Local model inference failed: {str(e)}"
 
-
+    # Handle OpenAI LLM
     elif llm_mode == "openai" and openai_client:
         try:
             response = openai_client.chat.completions.create(
@@ -253,19 +257,27 @@ def chat_with_llm(prompt_messages: list, temperature=0.7) -> tuple[str, float]:
                 messages=prompt_messages,
                 temperature=temperature,
             )
-            if hasattr(response, "usage"):
-                print(f"📊 Tokens — Prompt: {response.usage.prompt_tokens}, Completion: {response.usage.completion_tokens}, Total: {response.usage.total_tokens}")
+
             final_response = response.choices[0].message.content.strip()
+
+            if hasattr(response, "usage"):
+                usage["prompt_tokens"] = response.usage.prompt_tokens
+                usage["completion_tokens"] = response.usage.completion_tokens
+                usage["total_tokens"] = response.usage.total_tokens
+                print(f"📊 Tokens — Prompt: {usage['prompt_tokens']}, Completion: {usage['completion_tokens']}, Total: {usage['total_tokens']}")
+
         except Exception as e:
             final_response = f"❌ OpenAI call failed: {str(e)}"
 
     else:
         final_response = "❌ Selected LLM mode is not available or failed to initialize."
 
-    end_time = time.time()
-    elapsed_time = round(end_time - start_time, 2)
+    elapsed_time = round(time.time() - start_time, 2)
 
-    return final_response, elapsed_time
+    if return_usage:
+        return final_response, elapsed_time, usage
+    else:
+        return final_response, elapsed_time
 
 
 

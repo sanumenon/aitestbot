@@ -4,7 +4,7 @@ from config import get_target_url, DEFAULT_BROWSER
 from llm_engine import chat_with_llm, set_llm_mode, initialize_local_model
 from memory_manager import MemoryManager
 from code_generator import generate_test_code, generate_multiple_tests
-from dom_scraper import suggest_validations, suggest_validations_authenticated
+from dom_scraper import suggest_validations_smart,suggest_validations
 from intent_cache import IntentCache
 from executor import execute_tests_live
 from tinydb import TinyDB
@@ -21,6 +21,63 @@ import zipfile
 import webbrowser
 import time
 
+# Mapping from intent keywords to relative paths
+INTENT_PATH_MAP = {
+    "Impact account": "/giving-group/add-donor",
+    "campaign": "campaigns/campaign-test-campaign",
+    "charity": "/charities/the-thorold-reed-band",
+    "group edit": "/groups/demo-group-0fd0a2ff-2d27-4984-ac3f-082d2940bd76/edit",
+    "user profile": "user/profile/basic",
+    "login": "",
+    "dashboard":"/dashboard"
+}
+
+def extract_pages_from_prompt(prompt: str) -> list[str]:
+    prompt_lower = prompt.lower()
+    matched_pages = []
+
+    for keyword, path in INTENT_PATH_MAP.items():
+        if keyword.lower() in prompt_lower:
+            matched_pages.append((keyword.lower(), path))
+
+    # Sort so "login" always comes first
+    matched_pages.sort(key=lambda x: 0 if x[0] == "login" else 1)
+    return [p[1] for p in matched_pages]
+
+def sanitize_field_name(name):
+    name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
+    if name[0].isdigit():
+        name = f"el_{name}"
+    return name
+
+def to_findby_line(el):
+    by = el["by"]
+    selector = el["selector"]
+    field_name = sanitize_field_name(el["name"])
+    comment = f'// Type: {el["type"]}, Original name: {el["name"]}'
+
+    warning = ""
+    # Warn about numeric-only or UUID-like unstable IDs
+    if by == "id" and (selector.isdigit() or re.match(r"^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$", selector)):
+        warning = "// ⚠️ Warning: Detected unstable or auto-generated ID\n"
+
+    if by == "id":
+        return f'{warning}{comment}\n@FindBy(id = "{selector}")\nprivate WebElement {field_name};'
+    elif by == "name":
+        return f'{warning}{comment}\n@FindBy(name = "{selector}")\nprivate WebElement {field_name};'
+    elif by == "css":
+        return f'{warning}{comment}\n@FindBy(css = "{selector}")\nprivate WebElement {field_name};'
+    elif by == "xpath":
+        return f'{warning}{comment}\n@FindBy(xpath = "{selector}")\nprivate WebElement {field_name};'
+    return f'// ❌ Unsupported selector type: {by} for {el["name"]}'
+
+def infer_path_from_prompt(prompt: str):
+    prompt_lower = prompt.lower()
+    for keyword, path in INTENT_PATH_MAP.items():
+        if keyword in prompt_lower:
+            return path
+    return ""
+
 # ✅ Step 1: Always initialize all session keys FIRST
 required_session_keys = {
     "initialized": False,
@@ -34,7 +91,7 @@ required_session_keys = {
     "llm_choice": "local",
     "memory_exported": False,
     "local_model_name": "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-}
+    }
 
 for key, default in required_session_keys.items():
     if key not in st.session_state:
@@ -50,6 +107,7 @@ if not st.session_state.initialized:
     os.makedirs("rag_versions", exist_ok=True)
 
     st.session_state.initialized = True
+    
 
 # ✅ Step 3: Now continue app logic
 memory = MemoryManager()
@@ -75,10 +133,14 @@ def clear_session_memory(full: bool = False):
 # Sidebar logic for LLM mode, browser, memory management, RAG ingestion, and cache clearing
 with st.sidebar:
     st.header("Test Setup")
-    env_choice = st.selectbox("Environment", ["production", "qa", "stage"], index=0)
+    env_choice = st.selectbox("Environment", ["stage","production", "qa" ], index=0)
+    st.session_state["env_choice"] = env_choice
     custom_url = st.text_input("Override URL (optional)", "")
+    st.session_state["custom_url"] = custom_url.strip() if custom_url else None
     browser_choice = st.selectbox("Browser", ["chrome", "firefox"], index=0)
+    st.session_state["browser_choice"] = browser_choice
     use_browserstack = st.checkbox("Run on BrowserStack?", False)
+    st.session_state["use_browserstack"] = use_browserstack
 
     llm_choice = st.radio("LLM Mode", ["local", "openai"], index=0)
 
@@ -86,7 +148,7 @@ with st.sidebar:
         st.selectbox("Local Model", [
             "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
             "teknium/OpenHermes-2.5-Mistral-7B",
-            "mistralai/Mistral-7B-Instruct-v0.2",
+            "mistralai/Mistral-7B-Instruct-v0.2",            
             "google/gemma-2b",
         ], key="local_model_name")
 
@@ -101,8 +163,8 @@ with st.sidebar:
             st.toast(f"✅ Loaded model: {local_model_name}", icon="🧠")
         else:
             st.error(f"❌ Failed to load model: {local_model_name}")
-    else:
-        st.info(f"✅ Model already loaded: {local_model_name}")
+    # else:
+        # st.info(f"✅ Model already loaded: {local_model_name}")
 
     if st.session_state.llm_choice != llm_choice:
         st.session_state.llm_choice = llm_choice
@@ -187,7 +249,11 @@ if st.session_state.get("llm_choice") and not st.session_state.get("_llm_set_onc
 # ✅ Prompt input and LLM processing
 st.subheader("🗣️ Provide a Functional Test Instruction")
 #user_input = st.text_area("💬 Your prompt", key="user_prompt_input")
-user_input = st.text_area(label="", key="user_prompt_input", label_visibility="collapsed")
+user_input = st.text_area(label="-", key="user_prompt_input", label_visibility="collapsed")
+with st.expander("🔐 Login Credentials (if required)"):
+    username = st.text_input("Username", value="", key="username")
+    password = st.text_input("Password", type="password", key="password")
+
 send_clicked = st.button("📨 Generate Test cases")
 
 if send_clicked and user_input.strip():
@@ -196,63 +262,145 @@ if send_clicked and user_input.strip():
     def process_user_prompt(prompt):
         st.info("⏳ Processing your prompt with LLM and DOM validation...")
         start = time.time()
-        # Load chat history or start fresh
-        messages = st.session_state.get("chat_history", [])
-        # Append new user message
-        messages.append({"role": "user", "content": prompt})
-        url = custom_url or get_target_url(env_choice)
-        try:
-            # 🔐 If login details are available, use suggest_validations_authenticated
-            # Replace with actual logic if you have login fields
-            dom_elements = suggest_validations(url)  # or suggest_validations_authenticated(url, username, password)
-        except Exception as e:
-            st.warning(f"⚠️ DOM validation failed: {e}")
-            dom_elements = []
 
-        # Prepare DOM context to guide the LLM
-        dom_context = ""
-        if dom_elements:
-            dom_context = "\n".join([
-                f"{el['name']} → {el['by']}={el['selector']}" for el in dom_elements
-            ])
-            st.info("✅ DOM elements extracted and injected into the LLM prompt.")
+        base_url = st.session_state.get("custom_url") or get_target_url(st.session_state.get("env_choice", "stage"))
 
-        # Compose LLM prompt with DOM context
+        # Optional login credentials
+        with st.expander("🔐 Login Credentials (optional)", expanded=False):
+            username = st.text_input("Username / Email", type="default")
+            password = st.text_input("Password", type="password")
+
+        use_cookies = False
+
+        # Infer all relevant pages to visit
+        navigation_paths = extract_pages_from_prompt(prompt)
+        print(f"🧭 Pages to scrape based on prompt: {navigation_paths}")
+
+        dom_elements = []
+        url = base_url  # Default in case no navigation
+
+        for i, rel_path in enumerate(navigation_paths):
+            url = f"{base_url.rstrip('/')}/{rel_path.lstrip('/')}" if rel_path else base_url
+            print(f"🔗 Scraping page: {url}")
+
+            try:
+                if i == 0 and "login" in rel_path.lower():
+                    dom_elements += suggest_validations_smart(
+                        url=url,
+                        username=username.strip() if username else None,
+                        password=password.strip() if password else None,
+                        use_cookies=use_cookies
+                    )
+                    st.success("✅ Logged in and scraped login page.")
+                else:
+                    dom_elements += suggest_validations(url)
+                    st.success(f"✅ Scraped: {rel_path or url}")
+            except Exception as e:
+                st.error(f"❌ Failed scraping {rel_path or url}: {str(e)}")
+
+        # Step 2: Compact DOM Formatting
+        from dom_scraper import format_dom_compact
+        compact_dom = format_dom_compact(dom_elements)
+
         messages = []
-        if dom_context:
-            messages.append({"role": "system", "content": "Use only the following verified page elements when generating locators or selectors."})
-            messages.append({"role": "system", "content": dom_context})
 
-        messages.append({"role": "user", "content": prompt})
+        # System message with compact DOM instructions
+        messages.append({
+            "role": "system",
+            "content": f"""
+            Use *only* the following DOM elements extracted from {url}.
+            Each line is in the format:
+                field_name | strategy=selector
 
-        cached_code = cache.get_cached(prompt)
+            Do NOT invent new selectors or field names.
+
+            {compact_dom}
+
+            Generate a Java Page Object class using Selenium + TestNG + Maven.
+            Use @FindBy annotations and the PageFactory pattern.
+            """.strip()
+                })
+
+        # Step 2.5: Retrieve and Filter RAG Context
+        def filter_rag_chunks_by_prompt(rag_text, prompt, min_relevance=0.3):
+            from difflib import SequenceMatcher
+            return "\n".join(
+                line.strip() for line in rag_text.splitlines()
+                if SequenceMatcher(None, line.lower(), prompt.lower()).ratio() > min_relevance
+            )
+
+        rag_context = retrieve_context(prompt)
+        if rag_context:
+            filtered_rag = filter_rag_chunks_by_prompt(rag_context, prompt)
+            if filtered_rag.strip():
+                messages.append({
+                    "role": "system",
+                    "content": f"📄 Use this filtered help documentation for better understanding:\n\n{filtered_rag}"
+                })
+                st.info("📚 Filtered help doc context injected.")
+            else:
+                st.warning("⚠️ No relevant help lines found after filtering.")
+        else:
+            st.warning("ℹ️ No help documentation retrieved.")
+
+        # Step 3: Combine DOM + prompt
+        if dom_elements:
+            dom_context_lines = [to_findby_line(el) for el in dom_elements]
+            dom_context = "\n".join(dom_context_lines)
+            combined_prompt = f"""
+    Here are the DOM elements extracted from {url}. Use *only* these. Do NOT guess or invent any selectors, IDs, or field names.
+
+    {dom_context}
+
+    Now based on this, {prompt}
+    """
+        else:
+            combined_prompt = f"""
+    No DOM elements could be extracted from {url}, so you may have to make assumptions.
+
+    {prompt}
+    """
+
+        messages.append({"role": "user", "content": combined_prompt})
+        st.session_state.chat_history = messages
+
+        print("\n📦 Final messages sent to LLM:")
+        for m in messages:
+            print(f"\n--- {m['role'].upper()} ---\n{m['content']}")
+
+        current_env_url = st.session_state.get("custom_url") or get_target_url(st.session_state.get("env_choice", "stage"))
+        cached_code = None
+
+        if cache.get_cached(combined_prompt):
+            cached_url_used = cache.get_cached(combined_prompt).splitlines()[0] if cache.get_cached(combined_prompt) else ""
+            if not cached_url_used.startswith(current_env_url):
+                cache.clear_cache()
+                st.warning("🌐 Environment or URL changed — regenerating code with fresh LLM call.")
+            else:
+                cached_code = cache.get_cached(combined_prompt)
+
         if cached_code:
             st.success("✅ Retrieved code from intent cache (LLM not called).")
             response = cached_code
             elapsed = "0.0"
         else:
-            response, elapsed = chat_with_llm(messages)
-            cache.store(prompt, response)
-            # Append assistant's response to history
+            response, elapsed, token_usage = chat_with_llm(messages, return_usage=True)
+            cache.store(combined_prompt, response)
             messages.append({"role": "assistant", "content": response})
-            # Save updated history
             st.session_state.chat_history = messages
             st.session_state.llm_response_time = f"{elapsed} sec"
             st.success(f"✅ LLM responded in {elapsed} sec")
+
             with st.expander("🧠 LLM Response", expanded=True):
                 st.code(response, language="java")
 
-            st.session_state.generated_code_ready = True
-
-        st.session_state.llm_response_time = f"{elapsed} sec"
-        st.success(f"✅ LLM responded in {elapsed} sec")
-
-        with st.expander("🧠 LLM Response", expanded=True):
-            st.code(response, language="java")
+            # Token diagnostics
+            prompt_tokens = token_usage.get("prompt_tokens", "?")
+            completion_tokens = token_usage.get("completion_tokens", "?")
+            total_tokens = token_usage.get("total_tokens", "?")
+            st.info(f"📊 Token usage — Prompt: {prompt_tokens}, Completion: {completion_tokens}, Total: {total_tokens}")
 
         st.session_state.generated_code_ready = True
-
-        # ✅ Append to multi_module_specs list for "Generate All"
         module_hash = hashlib.md5(prompt.encode()).hexdigest()[:6]
         st.session_state.multi_module_specs.append({
             "user_prompt": prompt,
@@ -261,9 +409,14 @@ if send_clicked and user_input.strip():
             "class_name": f"Test{module_hash}",
             "llm_code": response
         })
+
         return response
 
+
+    
     chat_response=process_user_prompt(user_input)
+    
+
     # 🧠 Save chat memory to file
     # Only save interaction to TinyDB (no file dump)
     memory.save_interaction(user_input.strip(), chat_response.strip())
@@ -273,47 +426,6 @@ if send_clicked and user_input.strip():
         st.markdown("### 🧾 Queued Modules:")
         for mod in st.session_state.get("multi_module_specs", []):
             st.markdown(f"- `{mod['class_name']}` for {mod['url']}")
-
-# if send_clicked and user_input.strip():
-#     click_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-#     st.info(f"📩 **Send clicked at:** {click_time}")
-#     if send_clicked and user_input.strip():
-#         click_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-#         st.info(f"📩 **Send clicked at:** {click_time}")
-
-#         def process_user_prompt(prompt):
-#             st.info("⏳ Processing your prompt with LLM...")
-#             start = time.time()
-#             # Load chat history or start fresh
-#             messages = st.session_state.get("chat_history", [])
-#             # Append new user message
-#             messages.append({"role": "user", "content": prompt})
-#             response, elapsed = chat_with_llm(messages)
-#             # Append assistant's response to history
-#             messages.append({"role": "assistant", "content": response})
-#             # Save updated history
-#             st.session_state.chat_history = messages
-#             st.session_state.llm_response_time = f"{elapsed} sec"
-#             st.success(f"✅ LLM responded in {elapsed} sec")
-#             with st.expander("🧠 LLM Response", expanded=True):
-#                 st.code(response, language="java")
-
-#             st.session_state.generated_code_ready = True
-#             return response
-
-#         chat_response=process_user_prompt(user_input)
-#         # 🧠 Save chat memory to file
-#         # Only save interaction to TinyDB (no file dump)
-#         memory.save_interaction(user_input.strip(), chat_response.strip())
-
-#     click_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-#     st.balloons()
-#     st.info(f"📩 **Response received at:** {click_time}")
-# # Show queued modules
-# if st.session_state.get("multi_module_specs"):
-#     st.markdown("### 🧾 Queued Modules:")
-#     for mod in st.session_state.get("multi_module_specs", []):
-#         st.markdown(f"- `{mod['class_name']}` for {mod['url']}")
 
 # Button: Generate all test modules
 generate_clicked = st.sidebar.button("🧪 Generate All Modules", disabled=not st.session_state.get("multi_module_specs", []))

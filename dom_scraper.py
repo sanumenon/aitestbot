@@ -9,16 +9,30 @@ import re
 import time
 import pickle
 import os
+from selenium.common.exceptions import TimeoutException
 
 COOKIE_FILE = "cookies.pkl"
 
+def format_dom_compact(dom_elements):
+    """Return compact LLM-friendly DOM as text block"""
+    if not dom_elements:
+        return ""
+    return "\n".join(to_compact_findby_line(el) for el in dom_elements)
+
+
+def to_compact_findby_line(el):
+    """Compact DOM line: field_name | by=selector"""
+    by = el.get("by", "").strip()
+    selector = el.get("selector", "").strip()
+    name = el.get("name", "").strip()
+    return f"{name} | {by}={selector}"
+
 
 def sanitize_name(name):
-    name = re.sub(r"[^\w]", "_", name)
+    name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
     if not name or not name[0].isalpha():
         name = f"field_{name}"
     return name.lower()
-
 
 def save_cookies_after_manual_login(url):
     print("🚀 Launching browser for manual login...")
@@ -32,12 +46,11 @@ def save_cookies_after_manual_login(url):
         print(f"✅ Cookies saved to {COOKIE_FILE}")
     driver.quit()
 
-
 def load_browser_with_cookies(url):
     print("🚀 Launching browser with saved cookies...")
     options = uc.ChromeOptions()
     driver = uc.Chrome(options=options, version_main=137)
-    driver.get("https://charitableimpact.com")
+    driver.get(url)
     time.sleep(2)
 
     if os.path.exists(COOKIE_FILE):
@@ -54,7 +67,6 @@ def load_browser_with_cookies(url):
     driver.get(url)
     return driver
 
-
 def wait_for_js_hydration(driver, timeout=20):
     try:
         WebDriverWait(driver, timeout).until(
@@ -65,7 +77,6 @@ def wait_for_js_hydration(driver, timeout=20):
         )
     except Exception as e:
         print(f"⚠️ Timeout or hydration issue: {e}")
-
 
 def extract_element_metadata(driver, element):
     def get_label(el):
@@ -94,6 +105,7 @@ def extract_element_metadata(driver, element):
     )
 
     safe_name = sanitize_name(raw_name)
+    print(f"🧪 Raw name used: {raw_name}")
 
     if tag == "textarea":
         action = "enterText"
@@ -129,16 +141,27 @@ def extract_element_metadata(driver, element):
     name_attr = element.get_attribute("name")
     class_attr = element.get_attribute("class")
 
+    by, selector = None, None
+
     if id_attr:
-        by = "id"
-        selector = id_attr
-    elif name_attr:
-        by = "name"
-        selector = name_attr
-    elif class_attr and len(class_attr.split()) == 1:
-        by = "css"
-        selector = f".{class_attr.strip()}"
-    else:
+        matches = driver.find_elements(By.ID, id_attr)
+        if len(matches) == 1:
+            by = "id"
+            selector = id_attr
+
+    if not selector and class_attr and len(class_attr.split()) == 1:
+        matches = driver.find_elements(By.CSS_SELECTOR, f".{class_attr.strip()}")
+        if len(matches) == 1:
+            by = "css"
+            selector = f".{class_attr.strip()}"
+
+    if not selector and name_attr:
+        matches = driver.find_elements(By.NAME, name_attr)
+        if len(matches) == 1:
+            by = "name"
+            selector = name_attr
+
+    if not selector:
         by = "xpath"
         selector = driver.execute_script('''
             function absoluteXPath(element) {
@@ -165,7 +188,6 @@ def extract_element_metadata(driver, element):
         "label": raw_name.strip(),
     }
 
-
 def scrape_input_fields_after_login(driver):
     wait_for_js_hydration(driver)
     print("\n🔍 Extracting input fields...")
@@ -180,48 +202,71 @@ def scrape_input_fields_after_login(driver):
             meta["name"] += f"_{idx}"
         seen_names.add(meta["name"])
         print(f"✅ {meta['name']}: by={meta['by']}, selector={meta['selector']}")
+
         results.append(meta)
     return results
 
-
 def suggest_validations_authenticated(url, username, password):
     options = Options()
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
+    options.add_argument("--headless=new")
     driver = webdriver.Chrome(options=options)
     driver.get(url)
-    time.sleep(30)
-    WebDriverWait(driver, 30).until(
-        EC.presence_of_all_elements_located((By.XPATH, "//body"))
-    )
+    results = []
 
     try:
-        wait = WebDriverWait(driver, 10)
-        user_input = wait.until(EC.presence_of_element_located(
-            (By.XPATH, "//input[@type='email' or contains(@name, 'user') or contains(@id, 'user')]")
-        ))
-        pass_input = wait.until(EC.presence_of_element_located(
-            (By.XPATH, "//input[@type='password']")
-        ))
-        login_btn = wait.until(EC.presence_of_element_located(
-            (By.XPATH, "//button[contains(text(), 'Log in') or contains(text(), 'Login') or @type='submit']")
-        ))
+        wait = WebDriverWait(driver, 20)
 
-        user_input.clear()
-        user_input.send_keys(username)
-        pass_input.clear()
-        pass_input.send_keys(password)
-        login_btn.click()
-        time.sleep(5)
+        # 🚨 Point 2: Warn if URL doesn't look like a login page
+        if "login" not in url.lower():
+            raise Exception("⚠️ The provided URL doesn't appear to be a login page. Please provide the direct login URL.")
 
-        print(f"🔐 Logged in. Scraping inputs from: {driver.current_url}")
+        # ✅ Check if email input exists
+        try:
+            email_input = wait.until(EC.presence_of_element_located((
+                By.XPATH,
+                "//input[contains(@id,'email') or contains(@name,'email') or contains(@placeholder,'email') or @type='email']"
+            )))
+        except TimeoutException:
+            raise Exception("❌ Email input field not found. Login form may be missing or page structure has changed.")
+
+        email_input.clear()
+        email_input.send_keys(username)
+
+        # ✅ Check if password input exists
+        try:
+            password_input = wait.until(EC.presence_of_element_located((
+                By.XPATH,
+                "//input[contains(@id,'password') or contains(@name,'password') or contains(@placeholder,'password') or @type='password']"
+            )))
+        except TimeoutException:
+            raise Exception("❌ Password input field not found. Login form may be incomplete.")
+
+        password_input.clear()
+        password_input.send_keys(password)
+
+        # ✅ Attempt to click login
+        try:
+            login_button = wait.until(EC.element_to_be_clickable((
+                By.XPATH,
+                "//button[contains(translate(text(),'LOGIN','login'),'login') or @type='submit']"
+            )))
+        except TimeoutException:
+            raise Exception("❌ Login button not found or not clickable.")
+
+        login_button.click()
+
+        # ✅ Wait for post-login confirmation (either dashboard or logout text)
+        wait.until(lambda d: "dashboard" in d.current_url.lower() or
+                            any(e.is_displayed() for e in d.find_elements(By.XPATH, "//*[contains(text(),'Logout') or contains(text(),'My Account')]")))
+
+        print("✅ Login successful. Extracting DOM fields.")
         results = scrape_input_fields_after_login(driver)
 
     except Exception as e:
-        print(f"⚠️ Login failed or scraping error: {e}")
-        results = []
+        print(f"⚠️ Login failed: {e}")
+    finally:
+        driver.quit()
 
-    driver.quit()
     return results
 
 
@@ -233,6 +278,15 @@ def suggest_validations_with_bypass(url):
     driver.quit()
     return results
 
+def suggest_validations_smart(url, username=None, password=None, use_cookies=False):
+    print(f"🧭 suggest_validations_smart: URL={url}, user={username}, cookie_mode={use_cookies}")
+    
+    if use_cookies:
+        return suggest_validations_with_bypass(url)
+    elif username and password:
+        return suggest_validations_authenticated(url, username, password)
+    else:
+        return suggest_validations(url)
 
 def suggest_validations(url):
     options = Options()
@@ -245,22 +299,6 @@ def suggest_validations(url):
     results = scrape_input_fields_after_login(driver)
     driver.quit()
     return results
-
-
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) >= 2 and sys.argv[1] == "--save-cookies":
-        target_url = sys.argv[2] if len(sys.argv) >= 3 else "https://my.charitableimpact.com/login"
-        save_cookies_after_manual_login(target_url)
-    elif sys.argv[1] == "--scrape":
-        target_url = sys.argv[2]
-        validations = suggest_validations_with_bypass(target_url)
-        print(f"🎯 Total elements extracted: {len(validations)}")
-    elif sys.argv[1] == "--scrape-input-fields":
-        target_url = sys.argv[2]
-        driver = load_browser_with_cookies(target_url)
-        scrape_input_fields_after_login(driver)
-        driver.quit()
 
 
 

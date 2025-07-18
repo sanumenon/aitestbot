@@ -206,7 +206,7 @@ def scrape_input_fields_after_login(driver):
         results.append(meta)
     return results
 
-def suggest_validations_authenticated(url, username, password):
+def suggest_validations_authenticated(url, username, password,return_driver=False):
     options = Options()
     options.add_argument("--headless=new")
     driver = webdriver.Chrome(options=options)
@@ -265,9 +265,13 @@ def suggest_validations_authenticated(url, username, password):
     except Exception as e:
         print(f"⚠️ Login failed: {e}")
     finally:
-        driver.quit()
+        if return_driver:
+            return results, driver
+        else:
+            driver.quit()
+            return results
 
-    return results
+
 
 
 def suggest_validations_with_bypass(url):
@@ -288,17 +292,25 @@ def suggest_validations_smart(url, username=None, password=None, use_cookies=Fal
     else:
         return suggest_validations(url)
 
-def suggest_validations(url):
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    driver = webdriver.Chrome(options=options)
-    driver.get(url)
+def suggest_validations(url=None, driver=None):
+    new_driver = False
+    if driver is None:
+        options = Options()
+        options.add_argument("--headless=new")
+        driver = webdriver.Chrome(options=options)
+        new_driver = True
+
+    if url:
+        driver.get(url)
+
     wait_for_js_hydration(driver)
     results = scrape_input_fields_after_login(driver)
-    driver.quit()
+
+    if new_driver:
+        driver.quit()
+
     return results
+
 
 
 

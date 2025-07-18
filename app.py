@@ -283,18 +283,23 @@ if send_clicked and user_input.strip():
             url = f"{base_url.rstrip('/')}/{rel_path.lstrip('/')}" if rel_path else base_url
             print(f"🔗 Scraping page: {url}")
 
+            logged_in_driver = None  # 🔐 Safe init
+
             try:
                 if i == 0 and "login" in rel_path.lower():
-                    dom_elements += suggest_validations_smart(
+                    login_results, logged_in_driver = suggest_validations_smart(
                         url=url,
-                        username=username.strip() if username else None,
-                        password=password.strip() if password else None,
-                        use_cookies=use_cookies
+                        username=username,
+                        password=password,
+                        use_cookies=use_cookies,
+                        return_driver=True
                     )
+                    dom_elements += login_results
                     st.success("✅ Logged in and scraped login page.")
                 else:
-                    dom_elements += suggest_validations(url)
+                    dom_elements += suggest_validations(url, driver=logged_in_driver)
                     st.success(f"✅ Scraped: {rel_path or url}")
+
             except Exception as e:
                 st.error(f"❌ Failed scraping {rel_path or url}: {str(e)}")
 
@@ -319,9 +324,9 @@ if send_clicked and user_input.strip():
             Generate a Java Page Object class using Selenium + TestNG + Maven.
             Use @FindBy annotations and the PageFactory pattern.
             """.strip()
-                })
+        })
 
-        # Step 2.5: Retrieve and Filter RAG Context
+        # Step 2.5: RAG Help Filtering
         def filter_rag_chunks_by_prompt(rag_text, prompt, min_relevance=0.3):
             from difflib import SequenceMatcher
             return "\n".join(
@@ -343,23 +348,23 @@ if send_clicked and user_input.strip():
         else:
             st.warning("ℹ️ No help documentation retrieved.")
 
-        # Step 3: Combine DOM + prompt
+        # Step 3: Combine DOM + Prompt
         if dom_elements:
             dom_context_lines = [to_findby_line(el) for el in dom_elements]
             dom_context = "\n".join(dom_context_lines)
             combined_prompt = f"""
-    Here are the DOM elements extracted from {url}. Use *only* these. Do NOT guess or invent any selectors, IDs, or field names.
+            Here are the DOM elements extracted from {url}. Use *only* these. Do NOT guess or invent any selectors, IDs, or field names.
 
-    {dom_context}
+            {dom_context}
 
-    Now based on this, {prompt}
-    """
+            Now based on this, {prompt}
+            """
         else:
             combined_prompt = f"""
-    No DOM elements could be extracted from {url}, so you may have to make assumptions.
+            No DOM elements could be extracted from {url}, so you may have to make assumptions.
 
-    {prompt}
-    """
+            {prompt}
+            """
 
         messages.append({"role": "user", "content": combined_prompt})
         st.session_state.chat_history = messages
@@ -368,16 +373,9 @@ if send_clicked and user_input.strip():
         for m in messages:
             print(f"\n--- {m['role'].upper()} ---\n{m['content']}")
 
-        current_env_url = st.session_state.get("custom_url") or get_target_url(st.session_state.get("env_choice", "stage"))
-        cached_code = None
-
-        if cache.get_cached(combined_prompt):
-            cached_url_used = cache.get_cached(combined_prompt).splitlines()[0] if cache.get_cached(combined_prompt) else ""
-            if not cached_url_used.startswith(current_env_url):
-                cache.clear_cache()
-                st.warning("🌐 Environment or URL changed — regenerating code with fresh LLM call.")
-            else:
-                cached_code = cache.get_cached(combined_prompt)
+        # ✅ FIXED: Only once, correctly keyed caching
+        cache_key = f"{base_url}::{combined_prompt}"
+        cached_code = cache.get_cached(cache_key)
 
         if cached_code:
             st.success("✅ Retrieved code from intent cache (LLM not called).")
@@ -385,7 +383,7 @@ if send_clicked and user_input.strip():
             elapsed = "0.0"
         else:
             response, elapsed, token_usage = chat_with_llm(messages, return_usage=True)
-            cache.store(combined_prompt, response)
+            cache.store(cache_key, response)
             messages.append({"role": "assistant", "content": response})
             st.session_state.chat_history = messages
             st.session_state.llm_response_time = f"{elapsed} sec"
@@ -400,6 +398,7 @@ if send_clicked and user_input.strip():
             total_tokens = token_usage.get("total_tokens", "?")
             st.info(f"📊 Token usage — Prompt: {prompt_tokens}, Completion: {completion_tokens}, Total: {total_tokens}")
 
+        # ✅ Finalize state
         st.session_state.generated_code_ready = True
         module_hash = hashlib.md5(prompt.encode()).hexdigest()[:6]
         st.session_state.multi_module_specs.append({
@@ -452,7 +451,7 @@ if generate_clicked:
 # ✅ Final Test Execution Log and Report section
 # (Replaces existing final test execution log and extent report handling)
 
-# Button: Run tests
+# ✅ Button: Run tests
 run_clicked = st.sidebar.button("✅ Run Test Now", disabled=not st.session_state.get("generated_code_ready", False))
 if run_clicked:
     st.markdown("**📆 Packaging Maven project and starting WebDriver session...**")
@@ -484,7 +483,7 @@ if run_clicked:
     st.code(final_logs, language="bash")
     st.session_state.test_execution_complete = True
 
-    # --- Updated Extent Report Handling ---
+    # --- Extent Report Handling ---
     report_path = os.path.abspath("generated_code/test-output/ExtentReport.html")
 
     # Wait for report to be written
@@ -495,8 +494,11 @@ if run_clicked:
         waited += 1
 
     if os.path.exists(report_path):
-        col1, col2 = st.columns([1, 1])
+        st.session_state["extent_report_ready"] = True
+        st.success("✨ Extent report is ready. Scroll down to view options.")
 
+        st.subheader("📄 Extent Report")
+        col1, col2 = st.columns([1, 1])
         with open(report_path, "rb") as f:
             with col1:
                 st.download_button(
@@ -505,11 +507,32 @@ if run_clicked:
                     file_name="ExtentReport.html",
                     mime="text/html"
                 )
-
         with col2:
             if st.button("🔗 Open Extent Report in Browser"):
                 webbrowser.open(f"file://{report_path}")
 
-        st.success("✨ Extent report is ready. You can open it in your browser or download it.")
     else:
         st.warning("⚠️ Extent report not found. Check if test execution was successful.")
+        st.session_state["extent_report_ready"] = False
+
+
+# ✅ Show Extent Report options if ready
+# if st.session_state.get("extent_report_ready", False):
+#     st.subheader("📄 Extent Report")
+
+#     report_path = os.path.abspath("generated_code/test-output/ExtentReport.html")
+#     if os.path.exists(report_path):
+#         col1, col2 = st.columns([1, 1])
+
+#         with col1:
+#             with open(report_path, "rb") as f:
+#                 st.download_button(
+#                     "📄 Download Extent Report",
+#                     f,
+#                     file_name="ExtentReport.html",
+#                     mime="text/html"
+#                 )
+
+#         with col2:
+#             if st.button("🔗 Open Extent Report in Browser"):
+#                 webbrowser.open(f"file://{report_path}")

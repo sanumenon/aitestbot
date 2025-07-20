@@ -6,7 +6,16 @@ from llm_engine import chat_with_llm
 from rag_search import retrieve_context
 import re
 
-JAVA_RESERVED_KEYWORDS = {...}  # same as before
+JAVA_RESERVED_KEYWORDS = {
+    "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char",
+    "class", "const", "continue", "default", "do", "double", "else", "enum",
+    "exports", "extends", "final", "finally", "float", "for", "goto", "if",
+    "implements", "import", "instanceof", "int", "interface", "long", "module",
+    "native", "new", "package", "private", "protected", "public", "requires",
+    "return", "short", "static", "strictfp", "super", "switch", "synchronized",
+    "this", "throw", "throws", "transient", "try", "var", "void", "volatile",
+    "while", "_", "true", "false", "null"
+}
 
 import re
 
